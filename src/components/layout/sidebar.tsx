@@ -1,0 +1,186 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { APP_NAME } from "@/lib/constants";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import {
+  CreditCard,
+  LayoutDashboard,
+  Network,
+  Users,
+  Receipt,
+  FileText,
+  CheckSquare,
+  Shield,
+  Settings,
+  BarChart3,
+  Wallet,
+  GitBranch,
+  Bot,
+  ChevronLeft,
+  ChevronRight,
+  Building2,
+  ArrowRightLeft,
+  Banknote,
+  Scale,
+  Layers,
+} from "lucide-react";
+
+interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  badge?: string | number;
+  badgeVariant?: "default" | "destructive" | "warning" | "success";
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const navGroups: NavGroup[] = [
+  {
+    label: "Overview",
+    items: [
+      { label: "Dashboard", href: "/", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "Card Portal",
+    items: [
+      { label: "Hierarchy", href: "/hierarchy", icon: Network },
+      { label: "Employees", href: "/employees", icon: Users },
+      { label: "Cards", href: "/cards", icon: CreditCard },
+      { label: "Transactions", href: "/transactions", icon: ArrowRightLeft },
+    ],
+  },
+  {
+    label: "Expense Management",
+    items: [
+      { label: "Expenses", href: "/expenses", icon: Receipt },
+      { label: "Expense Reports", href: "/expense-reports", icon: FileText },
+      { label: "Approvals", href: "/approvals", icon: CheckSquare, badge: 8, badgeVariant: "destructive" },
+      { label: "Policies", href: "/policies", icon: Shield },
+      { label: "DOA Config", href: "/doa", icon: Scale },
+      { label: "Reimbursements", href: "/reimbursements", icon: Banknote },
+    ],
+  },
+  {
+    label: "Intelligent Service",
+    items: [
+      { label: "AI Assistant", href: "/ai-assistant", icon: Bot },
+    ],
+  },
+  {
+    label: "Reports & Analytics",
+    items: [
+      { label: "Reports", href: "/reports", icon: BarChart3 },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [
+      { label: "Settings", href: "/settings", icon: Settings },
+      { label: "Integrations", href: "/settings/integrations", icon: Layers },
+      { label: "Audit Trail", href: "/settings/audit", icon: GitBranch },
+    ],
+  },
+];
+
+export function Sidebar() {
+  const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <aside
+      className={cn(
+        "flex flex-col border-r bg-sidebar text-sidebar-foreground transition-all duration-300",
+        collapsed ? "w-[68px]" : "w-[260px]"
+      )}
+    >
+      {/* Logo */}
+      <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
+        <div className="w-8 h-8 bg-sidebar-primary rounded-lg flex items-center justify-center shrink-0">
+          <CreditCard className="w-5 h-5 text-sidebar-primary-foreground" />
+        </div>
+        {!collapsed && (
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-bold text-sidebar-foreground truncate">{APP_NAME}</span>
+            <span className="text-[10px] text-sidebar-foreground/50 truncate">Enterprise Platform</span>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation */}
+      <ScrollArea className="flex-1 px-2 py-2">
+        <nav className="space-y-4">
+          {navGroups.map((group) => (
+            <div key={group.label}>
+              {!collapsed && (
+                <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+                  {group.label}
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const isActive =
+                    pathname === item.href ||
+                    (item.href !== "/" && pathname.startsWith(item.href));
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-sidebar-accent text-sidebar-primary"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                      )}
+                      title={collapsed ? item.label : undefined}
+                    >
+                      <item.icon className={cn("w-4 h-4 shrink-0", isActive && "text-sidebar-primary")} />
+                      {!collapsed && (
+                        <>
+                          <span className="truncate flex-1">{item.label}</span>
+                          {item.badge && (
+                            <Badge
+                              variant={item.badgeVariant || "default"}
+                              className="h-5 min-w-[20px] flex items-center justify-center text-[10px] px-1.5"
+                            >
+                              {item.badge}
+                            </Badge>
+                          )}
+                        </>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+      </ScrollArea>
+
+      {/* Collapse toggle */}
+      <div className="border-t border-sidebar-border p-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setCollapsed(!collapsed)}
+          className="w-full text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+        >
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          {!collapsed && <span className="ml-2 text-xs">Collapse</span>}
+        </Button>
+      </div>
+    </aside>
+  );
+}

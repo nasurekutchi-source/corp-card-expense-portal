@@ -1,0 +1,23 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3300:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - WATCHPACK_POLLING=true
+      - NEXTAUTH_SECRET=dev-secret-change-in-production
+      - NEXTAUTH_URL=http://localhost:3300
+      - NODE_ENV=development
+      # Oracle Cloud Free Tier - set these when ready
+      - ORACLE_CONNECTION_STRING=${ORACLE_CONNECTION_STRING:-}
+      - ORACLE_USER=${ORACLE_USER:-}
+      - ORACLE_PASSWORD=${ORACLE_PASSWORD:-}
+      # MongoDB Atlas - set when ready
+      - MONGODB_URI=${MONGODB_URI:-}
+      # Upstash Redis - set when ready
+      - UPSTASH_REDIS_URL=${UPSTASH_REDIS_URL:-}
+    restart: unless-stopped
