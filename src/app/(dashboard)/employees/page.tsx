@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { getEmployees, getDepartments, getCards } from "@/lib/store";
 import { getInitials } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   Users,
   Plus,
@@ -26,6 +28,9 @@ import {
 
 export default function EmployeesPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   const allEmployees = getEmployees();
   const allDepartments = getDepartments();
@@ -46,12 +51,85 @@ export default function EmployeesPage() {
       emp.department.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const lines = text.split("\n").filter((line) => line.trim());
+      if (lines.length < 2) {
+        toast.error("CSV file must have a header row and at least one data row");
+        return;
+      }
+
+      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+      const records = lines.slice(1).map((line) => {
+        const values = line.split(",").map((v) => v.trim());
+        const record: Record<string, string> = {};
+        headers.forEach((header, idx) => {
+          if (values[idx]) record[header] = values[idx];
+        });
+        return {
+          firstName: record["firstname"] || record["first_name"] || record["first name"] || "",
+          lastName: record["lastname"] || record["last_name"] || record["last name"] || "",
+          email: record["email"] || "",
+          phone: record["phone"] || "",
+          employeeNumber: record["employeenumber"] || record["employee_number"] || record["employee number"] || "",
+          pan: record["pan"] || "",
+          departmentId: record["departmentid"] || record["department_id"] || record["department id"] || "",
+          costCenterId: record["costcenterid"] || record["cost_center_id"] || record["cost center id"] || "",
+          level: record["level"] || "STAFF",
+        };
+      });
+
+      const res = await fetch("/api/v1/employees/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ records }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        toast.error(result.error || "Failed to import employees");
+        return;
+      }
+
+      if (result.errors?.length > 0) {
+        toast.warning(`Imported ${result.imported} of ${result.total} employees. ${result.errors.length} errors.`);
+      } else {
+        toast.success(`Successfully imported ${result.imported} employees`);
+      }
+
+      router.refresh();
+    } catch (err) {
+      toast.error("Failed to parse CSV file");
+    } finally {
+      setImporting(false);
+      // Reset file input so same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in">
       <PageHeader title="Employees" description={`${employees.length} employees across the organization`}>
-        <Button variant="outline">
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept=".csv"
+          className="hidden"
+          onChange={handleCsvImport}
+        />
+        <Button
+          variant="outline"
+          disabled={importing}
+          onClick={() => fileInputRef.current?.click()}
+        >
           <Upload className="w-4 h-4" />
-          Import CSV
+          {importing ? "Importing..." : "Import CSV"}
         </Button>
         <Button asChild>
           <Link href="/employees/new">
@@ -122,7 +200,12 @@ export default function EmployeesPage() {
                 <Button variant="outline" size="sm" className="flex-1" asChild>
                   <Link href={`/employees/${emp.id}`}>View Profile</Link>
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => router.push(`/cards?employeeId=${emp.id}`)}
+                >
                   Manage Cards
                 </Button>
               </div>

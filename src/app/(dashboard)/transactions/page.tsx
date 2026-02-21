@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
 import { getTransactions } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   Search,
   Filter,
@@ -60,6 +62,7 @@ export default function TransactionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const router = useRouter();
 
   // Advanced filters
   const [mccFilter, setMccFilter] = useState("All Categories");
@@ -123,10 +126,61 @@ export default function TransactionsPage() {
     totalAmount: filteredTxns.reduce((sum, t) => sum + t.amount, 0),
   }), [filteredTxns]);
 
+  const handleExportCsv = useCallback(() => {
+    try {
+      const headers = [
+        "Transaction ID",
+        "Date",
+        "Merchant",
+        "Employee",
+        "Card (Last 4)",
+        "Amount (INR)",
+        "Category",
+        "Channel",
+        "Status",
+        "City",
+        "Country",
+        "Has Receipt",
+        "Auth Code",
+      ];
+
+      const rows = filteredTxns.map((txn) => [
+        txn.id,
+        txn.timestamp,
+        `"${txn.merchantName.replace(/"/g, '""')}"`,
+        `"${txn.employeeName.replace(/"/g, '""')}"`,
+        txn.cardLast4,
+        txn.amount.toString(),
+        txn.mccCategory,
+        txn.channel,
+        txn.status,
+        txn.location.city,
+        txn.location.country,
+        txn.hasReceipt ? "Yes" : "No",
+        txn.authCode,
+      ]);
+
+      const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `transactions-export-${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Exported ${filteredTxns.length} transactions to CSV`);
+    } catch (err) {
+      toast.error("Failed to export transactions");
+    }
+  }, [filteredTxns]);
+
   return (
     <div className="space-y-6 animate-in">
       <PageHeader title="Transactions" description="Real-time transaction feed across all corporate cards">
-        <Button variant="outline">
+        <Button variant="outline" onClick={handleExportCsv}>
           <Download className="w-4 h-4" />
           Export
         </Button>
@@ -276,7 +330,7 @@ export default function TransactionsPage() {
 
               {/* Amount Min */}
               <div className="space-y-1">
-                <label className="text-[10px] font-medium text-muted-foreground uppercase">Amount Min (₹)</label>
+                <label className="text-[10px] font-medium text-muted-foreground uppercase">Amount Min (INR)</label>
                 <Input
                   type="number"
                   placeholder="0"
@@ -288,7 +342,7 @@ export default function TransactionsPage() {
 
               {/* Amount Max */}
               <div className="space-y-1">
-                <label className="text-[10px] font-medium text-muted-foreground uppercase">Amount Max (₹)</label>
+                <label className="text-[10px] font-medium text-muted-foreground uppercase">Amount Max (INR)</label>
                 <Input
                   type="number"
                   placeholder="No limit"
@@ -354,7 +408,7 @@ export default function TransactionsPage() {
           )}
           {(amountMin || amountMax) && (
             <Badge variant="secondary" className="text-xs gap-1">
-              ₹{amountMin || "0"} — ₹{amountMax || "∞"}
+              INR {amountMin || "0"} — INR {amountMax || "No limit"}
               <X className="w-3 h-3 cursor-pointer" onClick={() => { setAmountMin(""); setAmountMax(""); }} />
             </Badge>
           )}
@@ -381,6 +435,7 @@ export default function TransactionsPage() {
                 <div
                   key={txn.id}
                   className="flex items-center gap-4 px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer"
+                  onClick={() => router.push(`/transactions/${txn.id}`)}
                 >
                   {/* Icon */}
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">

@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { getEmployees } from "@/lib/store";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   CreditCard,
@@ -18,6 +20,7 @@ import {
   ChevronLeft,
   CheckCircle2,
   Shield,
+  Search,
 } from "lucide-react";
 
 const steps = ["Card Type", "Limits & Controls", "Review & Submit"];
@@ -28,10 +31,101 @@ const cardTypes = [
   { type: "SINGLE_USE", label: "Single-Use Card", desc: "One-time virtual card that auto-expires after use. Best for one-off purchases.", icon: Zap },
 ];
 
+const NETWORKS = ["VISA", "MASTERCARD", "RUPAY"] as const;
+
+const DEFAULT_CHANNELS: Record<string, boolean> = {
+  POS: true,
+  "E-Commerce": true,
+  Contactless: true,
+  "Mobile Wallet": true,
+  ATM: false,
+};
+
+const MCC_BLOCKED = ["Gambling", "Crypto", "Liquor", "ATM Cash"];
+
 export default function NewCardPage() {
+  const router = useRouter();
   const [step, setStep] = useState(0);
   const [selectedType, setSelectedType] = useState("VIRTUAL");
+  const [selectedNetwork, setSelectedNetwork] = useState<string>("VISA");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [employeeSearch, setEmployeeSearch] = useState("");
   const [limits, setLimits] = useState({ perTransaction: 50000, daily: 100000, monthly: 500000 });
+  const [channels, setChannels] = useState<Record<string, boolean>>({ ...DEFAULT_CHANNELS });
+  const [justification, setJustification] = useState("Required for team software subscriptions and SaaS tools.");
+  const [submitting, setSubmitting] = useState(false);
+
+  const employees = getEmployees();
+
+  // Filtered employees for searchable dropdown
+  const filteredEmployees = useMemo(() => {
+    if (!employeeSearch.trim()) return employees;
+    const s = employeeSearch.toLowerCase();
+    return employees.filter(
+      (emp) =>
+        emp.firstName.toLowerCase().includes(s) ||
+        emp.lastName.toLowerCase().includes(s) ||
+        emp.employeeNumber.toLowerCase().includes(s) ||
+        emp.email.toLowerCase().includes(s)
+    );
+  }, [employees, employeeSearch]);
+
+  // Selected employee object
+  const selectedEmployee = employees.find((e) => e.id === selectedEmployeeId) || null;
+
+  // Auto-select first employee if none selected
+  useEffect(() => {
+    if (!selectedEmployeeId && employees.length > 0) {
+      setSelectedEmployeeId(employees[0].id);
+    }
+  }, [selectedEmployeeId, employees]);
+
+  // ---------- Submit Request ----------
+  async function handleSubmit() {
+    if (!selectedEmployeeId) {
+      toast.error("Please select an employee to assign the card to");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const enabledChannels = Object.entries(channels)
+        .filter(([, v]) => v)
+        .map(([k]) => k);
+
+      const res = await fetch("/api/v1/cards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: selectedType,
+          network: selectedNetwork,
+          employeeId: selectedEmployeeId,
+          spendLimits: {
+            perTransaction: limits.perTransaction,
+            daily: limits.daily,
+            monthly: limits.monthly,
+          },
+          channels: enabledChannels,
+          mccRestrictions: MCC_BLOCKED,
+          justification,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to submit card request");
+      }
+      toast.success("Card request submitted successfully! Pending approval.");
+      router.push("/cards");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit card request");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // ---------- Channel toggle ----------
+  function toggleChannel(ch: string) {
+    setChannels((prev) => ({ ...prev, [ch]: !prev[ch] }));
+  }
 
   return (
     <div className="space-y-6 animate-in">
@@ -101,21 +195,47 @@ export default function NewCardPage() {
               </Card>
             ))}
             <div className="space-y-3 mt-4">
+              {/* Searchable employee selection */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium">Assign to Employee</label>
-                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                  {getEmployees().map((emp) => (
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search employees..."
+                    value={employeeSearch}
+                    onChange={(e) => setEmployeeSearch(e.target.value)}
+                    className="pl-10 mb-1"
+                  />
+                </div>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={selectedEmployeeId}
+                  onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                  size={Math.min(filteredEmployees.length, 5)}
+                >
+                  {filteredEmployees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.firstName} {emp.lastName} ({emp.employeeNumber})
                     </option>
                   ))}
                 </select>
+                {selectedEmployee && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Selected: {selectedEmployee.firstName} {selectedEmployee.lastName} &mdash; {selectedEmployee.email}
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium">Card Network</label>
                 <div className="flex gap-2">
-                  {["VISA", "MASTERCARD", "RUPAY"].map((net) => (
-                    <Button key={net} variant="outline" size="sm" className="flex-1">
+                  {NETWORKS.map((net) => (
+                    <Button
+                      key={net}
+                      variant={selectedNetwork === net ? "default" : "outline"}
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setSelectedNetwork(net)}
+                    >
                       {net}
                     </Button>
                   ))}
@@ -134,7 +254,7 @@ export default function NewCardPage() {
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Per Transaction Limit (₹)</label>
+                  <label className="text-xs font-medium">Per Transaction Limit (INR)</label>
                   <Input
                     type="number"
                     value={limits.perTransaction}
@@ -142,7 +262,7 @@ export default function NewCardPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Daily Limit (₹)</label>
+                  <label className="text-xs font-medium">Daily Limit (INR)</label>
                   <Input
                     type="number"
                     value={limits.daily}
@@ -150,7 +270,7 @@ export default function NewCardPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Monthly Limit (₹)</label>
+                  <label className="text-xs font-medium">Monthly Limit (INR)</label>
                   <Input
                     type="number"
                     value={limits.monthly}
@@ -161,11 +281,16 @@ export default function NewCardPage() {
 
               <div className="space-y-3 pt-4 border-t">
                 <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Channel Controls</h4>
-                {["POS", "E-Commerce", "Contactless", "Mobile Wallet", "ATM"].map((ch) => (
+                {Object.keys(channels).map((ch) => (
                   <div key={ch} className="flex items-center justify-between">
                     <span className="text-sm">{ch}</span>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" defaultChecked={ch !== "ATM"} className="sr-only peer" />
+                      <input
+                        type="checkbox"
+                        checked={channels[ch]}
+                        onChange={() => toggleChannel(ch)}
+                        className="sr-only peer"
+                      />
                       <div className="w-9 h-5 bg-muted rounded-full peer peer-checked:bg-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all" />
                     </label>
                   </div>
@@ -175,7 +300,7 @@ export default function NewCardPage() {
               <div className="space-y-3 pt-4 border-t">
                 <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">MCC Restrictions</h4>
                 <div className="flex gap-1.5 flex-wrap">
-                  {["Gambling", "Crypto", "Liquor", "ATM Cash"].map((mcc) => (
+                  {MCC_BLOCKED.map((mcc) => (
                     <Badge key={mcc} variant="destructive" className="text-[9px]">
                       {mcc} Blocked
                     </Badge>
@@ -203,23 +328,60 @@ export default function NewCardPage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Network</p>
-                  <p className="font-medium">VISA</p>
+                  <p className="font-medium">{selectedNetwork}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Per Transaction</p>
-                  <p className="font-medium">₹{limits.perTransaction.toLocaleString("en-IN")}</p>
+                  <p className="font-medium">&#8377;{limits.perTransaction.toLocaleString("en-IN")}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Daily Limit</p>
-                  <p className="font-medium">₹{limits.daily.toLocaleString("en-IN")}</p>
+                  <p className="font-medium">&#8377;{limits.daily.toLocaleString("en-IN")}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Monthly Limit</p>
-                  <p className="font-medium">₹{limits.monthly.toLocaleString("en-IN")}</p>
+                  <p className="font-medium">&#8377;{limits.monthly.toLocaleString("en-IN")}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Employee</p>
-                  <p className="font-medium">Vikram Singh (BFS005)</p>
+                  <p className="font-medium">
+                    {selectedEmployee
+                      ? `${selectedEmployee.firstName} ${selectedEmployee.lastName} (${selectedEmployee.employeeNumber})`
+                      : "Not selected"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Channel summary */}
+              <div className="pt-4 border-t">
+                <p className="text-xs text-muted-foreground mb-1">Enabled Channels</p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {Object.entries(channels)
+                    .filter(([, enabled]) => enabled)
+                    .map(([ch]) => (
+                      <Badge key={ch} variant="success" className="text-[9px]">
+                        {ch}
+                      </Badge>
+                    ))}
+                  {Object.entries(channels)
+                    .filter(([, enabled]) => !enabled)
+                    .map(([ch]) => (
+                      <Badge key={ch} variant="secondary" className="text-[9px] line-through opacity-50">
+                        {ch}
+                      </Badge>
+                    ))}
+                </div>
+              </div>
+
+              {/* MCC Restrictions summary */}
+              <div className="pt-4 border-t">
+                <p className="text-xs text-muted-foreground mb-1">MCC Restrictions</p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {MCC_BLOCKED.map((mcc) => (
+                    <Badge key={mcc} variant="destructive" className="text-[9px]">
+                      {mcc} Blocked
+                    </Badge>
+                  ))}
                 </div>
               </div>
 
@@ -228,7 +390,8 @@ export default function NewCardPage() {
                 <textarea
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px]"
                   placeholder="Why is this card needed?"
-                  defaultValue="Required for team software subscriptions and SaaS tools."
+                  value={justification}
+                  onChange={(e) => setJustification(e.target.value)}
                 />
               </div>
 
@@ -256,9 +419,9 @@ export default function NewCardPage() {
               <ChevronRight className="w-4 h-4" />
             </Button>
           ) : (
-            <Button>
+            <Button onClick={handleSubmit} disabled={submitting}>
               <CheckCircle2 className="w-4 h-4" />
-              Submit Request
+              {submitting ? "Submitting..." : "Submit Request"}
             </Button>
           )}
         </div>

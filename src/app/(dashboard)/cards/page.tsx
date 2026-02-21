@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,16 +12,38 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
 import { getCards } from "@/lib/store";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import {
   CreditCard,
   Plus,
   Search,
-  Filter,
   Snowflake,
   Sun,
   MoreHorizontal,
   Wifi,
   Eye,
+  Settings2,
+  ArrowRightLeft,
+  Gauge,
+  XCircle,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -29,7 +52,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-function CardVisual({ card }: { card: ReturnType<typeof getCards>[0] }) {
+type CardData = ReturnType<typeof getCards>[0];
+
+function CardVisual({ card }: { card: CardData }) {
   const networkColors = {
     VISA: "from-blue-600 to-blue-800",
     MASTERCARD: "from-red-600 to-orange-600",
@@ -81,8 +106,25 @@ function CardVisual({ card }: { card: ReturnType<typeof getCards>[0] }) {
 }
 
 export default function CardsPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
+
+  // Set Limits dialog state
+  const [limitsDialogOpen, setLimitsDialogOpen] = useState(false);
+  const [limitsCard, setLimitsCard] = useState<CardData | null>(null);
+  const [limitsForm, setLimitsForm] = useState({
+    perTransaction: 0,
+    daily: 0,
+    monthly: 0,
+  });
+  const [savingLimits, setSavingLimits] = useState(false);
+
+  // Cancel Card confirmation state
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelCard, setCancelCard] = useState<CardData | null>(null);
+  const [cancellingCard, setCancellingCard] = useState(false);
 
   const cards = getCards();
 
@@ -101,6 +143,104 @@ export default function CardsPage() {
     frozen: cards.filter((c) => c.status === "FROZEN").length,
     virtual: cards.filter((c) => c.type === "VIRTUAL").length,
   };
+
+  // ---------- Freeze / Unfreeze ----------
+  async function handleFreezeToggle(card: CardData) {
+    const newStatus = card.status === "FROZEN" ? "ACTIVE" : "FROZEN";
+    setLoadingCardId(card.id);
+    try {
+      const res = await fetch(`/api/v1/cards/${card.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to update card");
+      }
+      toast.success(
+        newStatus === "FROZEN"
+          ? `Card ****${card.last4Digits} has been frozen`
+          : `Card ****${card.last4Digits} has been unfrozen`
+      );
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update card status");
+    } finally {
+      setLoadingCardId(null);
+    }
+  }
+
+  // ---------- Cancel Card ----------
+  function openCancelDialog(card: CardData) {
+    setCancelCard(card);
+    setCancelDialogOpen(true);
+  }
+
+  async function handleCancelCard() {
+    if (!cancelCard) return;
+    setCancellingCard(true);
+    try {
+      const res = await fetch(`/api/v1/cards/${cancelCard.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "CANCELLED" }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to cancel card");
+      }
+      toast.success(`Card ****${cancelCard.last4Digits} has been cancelled`);
+      setCancelDialogOpen(false);
+      setCancelCard(null);
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to cancel card");
+    } finally {
+      setCancellingCard(false);
+    }
+  }
+
+  // ---------- Set Limits ----------
+  function openLimitsDialog(card: CardData) {
+    setLimitsCard(card);
+    setLimitsForm({
+      perTransaction: card.spendLimits.perTransaction,
+      daily: card.spendLimits.daily,
+      monthly: card.spendLimits.monthly,
+    });
+    setLimitsDialogOpen(true);
+  }
+
+  async function handleSaveLimits() {
+    if (!limitsCard) return;
+    setSavingLimits(true);
+    try {
+      const res = await fetch(`/api/v1/cards/${limitsCard.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          spendLimits: {
+            perTransaction: limitsForm.perTransaction,
+            daily: limitsForm.daily,
+            monthly: limitsForm.monthly,
+          },
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to update limits");
+      }
+      toast.success(`Spend limits updated for card ****${limitsCard.last4Digits}`);
+      setLimitsDialogOpen(false);
+      setLimitsCard(null);
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update limits");
+    } finally {
+      setSavingLimits(false);
+    }
+  }
 
   return (
     <div className="space-y-6 animate-in">
@@ -202,6 +342,8 @@ export default function CardsPage() {
                   variant={card.status === "FROZEN" ? "default" : "outline"}
                   size="sm"
                   className="flex-1"
+                  disabled={loadingCardId === card.id || card.status === "CANCELLED"}
+                  onClick={() => handleFreezeToggle(card)}
                 >
                   {card.status === "FROZEN" ? (
                     <><Sun className="w-3 h-3" /> Unfreeze</>
@@ -216,10 +358,26 @@ export default function CardsPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>Edit Controls</DropdownMenuItem>
-                    <DropdownMenuItem>View Transactions</DropdownMenuItem>
-                    <DropdownMenuItem>Set Limits</DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">Cancel Card</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push(`/cards/${card.id}`)}>
+                      <Settings2 className="w-3.5 h-3.5 mr-2" />
+                      Edit Controls
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push(`/transactions?cardId=${card.id}`)}>
+                      <ArrowRightLeft className="w-3.5 h-3.5 mr-2" />
+                      View Transactions
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => openLimitsDialog(card)}>
+                      <Gauge className="w-3.5 h-3.5 mr-2" />
+                      Set Limits
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive"
+                      disabled={card.status === "CANCELLED"}
+                      onClick={() => openCancelDialog(card)}
+                    >
+                      <XCircle className="w-3.5 h-3.5 mr-2" />
+                      Cancel Card
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -227,6 +385,119 @@ export default function CardsPage() {
           </Card>
         ))}
       </div>
+
+      {/* ---- Set Limits Dialog ---- */}
+      <Dialog open={limitsDialogOpen} onOpenChange={setLimitsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set Spend Limits</DialogTitle>
+            <DialogDescription>
+              {limitsCard
+                ? `Adjust spend limits for card ****${limitsCard.last4Digits} (${limitsCard.employeeName})`
+                : "Adjust spend limits for this card"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">Per Transaction Limit (INR)</label>
+              <Input
+                type="number"
+                value={limitsForm.perTransaction}
+                onChange={(e) =>
+                  setLimitsForm((f) => ({ ...f, perTransaction: parseInt(e.target.value) || 0 }))
+                }
+              />
+              <input
+                type="range"
+                min={0}
+                max={500000}
+                step={5000}
+                value={limitsForm.perTransaction}
+                onChange={(e) =>
+                  setLimitsForm((f) => ({ ...f, perTransaction: parseInt(e.target.value) }))
+                }
+                className="w-full accent-primary"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">Daily Limit (INR)</label>
+              <Input
+                type="number"
+                value={limitsForm.daily}
+                onChange={(e) =>
+                  setLimitsForm((f) => ({ ...f, daily: parseInt(e.target.value) || 0 }))
+                }
+              />
+              <input
+                type="range"
+                min={0}
+                max={1000000}
+                step={10000}
+                value={limitsForm.daily}
+                onChange={(e) =>
+                  setLimitsForm((f) => ({ ...f, daily: parseInt(e.target.value) }))
+                }
+                className="w-full accent-primary"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">Monthly Limit (INR)</label>
+              <Input
+                type="number"
+                value={limitsForm.monthly}
+                onChange={(e) =>
+                  setLimitsForm((f) => ({ ...f, monthly: parseInt(e.target.value) || 0 }))
+                }
+              />
+              <input
+                type="range"
+                min={0}
+                max={5000000}
+                step={50000}
+                value={limitsForm.monthly}
+                onChange={(e) =>
+                  setLimitsForm((f) => ({ ...f, monthly: parseInt(e.target.value) }))
+                }
+                className="w-full accent-primary"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLimitsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveLimits} disabled={savingLimits}>
+              {savingLimits ? "Saving..." : "Save Limits"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ---- Cancel Card Confirmation ---- */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Card</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cancelCard
+                ? `Are you sure you want to permanently cancel card ****${cancelCard.last4Digits} assigned to ${cancelCard.employeeName}? This action cannot be undone.`
+                : "Are you sure you want to cancel this card?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancellingCard}>Keep Card</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelCard}
+              disabled={cancellingCard}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancellingCard ? "Cancelling..." : "Yes, Cancel Card"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

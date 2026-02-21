@@ -25,9 +25,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    if (!body.last4Digits || !body.employeeId) {
+    if (!body.employeeId) {
       return NextResponse.json(
-        { error: "Missing required fields: last4Digits, employeeId" },
+        { error: "Missing required field: employeeId" },
         { status: 400 }
       );
     }
