@@ -3,7 +3,7 @@ services:
     name: corp-card-portal
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     envVars:
       - key: ORACLE_CONNECTION_STRING
