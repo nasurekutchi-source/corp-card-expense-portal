@@ -18,8 +18,12 @@ services:
         sync: false
       - key: NEXTAUTH_SECRET
         generateValue: true
+      - key: AUTH_SECRET
+        generateValue: true
       - key: NEXTAUTH_URL
-        sync: false
+        value: "https://corp-card-portal.onrender.com"
+      - key: AUTH_URL
+        value: "https://corp-card-portal.onrender.com"
       - key: CLOUDINARY_URL
         sync: false
       - key: NODE_VERSION
