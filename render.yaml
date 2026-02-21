@@ -3,7 +3,6 @@ services:
     name: corp-card-portal
     runtime: node
     plan: free
-    nodeVersion: "20"
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
@@ -23,5 +22,7 @@ services:
         sync: false
       - key: CLOUDINARY_URL
         sync: false
+      - key: NODE_VERSION
+        value: "20"
       - key: NODE_ENV
         value: production
