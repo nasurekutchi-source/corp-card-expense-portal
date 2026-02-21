@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/page-header";
 import { APP_NAME, DEMO_USERS, ROLE_LABELS } from "@/lib/constants";
+import { useModuleConfig } from "@/components/providers/module-config-provider";
 import {
   Building2,
   Users,
@@ -36,16 +36,7 @@ import {
 } from "lucide-react";
 
 export default function SettingsPage() {
-  const [modules, setModules] = useState({
-    cardPortal: true,
-    expenseManagement: true,
-    ocrReceipts: true,
-    aiAssistant: true,
-    mileageTracking: false,
-    perDiem: false,
-    teamsIntegration: true,
-    apExport: true,
-  });
+  const { config: modules, updateConfig } = useModuleConfig();
 
   return (
     <div className="space-y-6 animate-in">
@@ -170,7 +161,7 @@ export default function SettingsPage() {
                   <button
                     onClick={() => {
                       if (!mod.required) {
-                        setModules((prev) => ({ ...prev, [mod.key]: !prev[mod.key as keyof typeof prev] }));
+                        updateConfig({ [mod.key]: !modules[mod.key as keyof typeof modules] });
                       }
                     }}
                     className="shrink-0"

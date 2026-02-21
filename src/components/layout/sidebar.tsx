@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { APP_NAME, ROLE_LABELS, type UserRole } from "@/lib/constants";
-import { useUserRole, canAccessNav, defaultModuleConfig, type NavSection } from "@/lib/role-access";
+import { useUserRole, canAccessNav, type NavSection } from "@/lib/role-access";
+import { useModuleConfig } from "@/components/providers/module-config-provider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,8 +47,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
-function getNavGroups(role: UserRole): NavGroup[] {
-  const mc = defaultModuleConfig;
+function getNavGroups(role: UserRole, mc: import("@/lib/role-access").ModuleConfig): NavGroup[] {
 
   // Employee/Cardholder — personal navigation only
   if (role === "EMPLOYEE") {
@@ -152,7 +152,8 @@ export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { role } = useUserRole();
-  const navGroups = getNavGroups(role);
+  const { config: moduleConfig } = useModuleConfig();
+  const navGroups = getNavGroups(role, moduleConfig);
 
   return (
     <aside

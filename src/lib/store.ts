@@ -402,6 +402,41 @@ function buildInitialStore(): Store {
 let store: Store = buildInitialStore();
 
 // =============================================================================
+// Module Configuration (persists in-memory)
+// =============================================================================
+
+export interface ModuleConfig {
+  cardPortal: boolean;
+  expenseManagement: boolean;
+  ocrReceipts: boolean;
+  aiAssistant: boolean;
+  mileageTracking: boolean;
+  perDiem: boolean;
+  teamsIntegration: boolean;
+  apExport: boolean;
+}
+
+let moduleConfig: ModuleConfig = {
+  cardPortal: true,
+  expenseManagement: false,
+  ocrReceipts: true,
+  aiAssistant: true,
+  mileageTracking: false,
+  perDiem: false,
+  teamsIntegration: true,
+  apExport: true,
+};
+
+export function getModuleConfig(): ModuleConfig {
+  return { ...moduleConfig };
+}
+
+export function updateModuleConfig(updates: Partial<ModuleConfig>): ModuleConfig {
+  moduleConfig = { ...moduleConfig, ...updates };
+  return { ...moduleConfig };
+}
+
+// =============================================================================
 // Store Access & Reset
 // =============================================================================
 
