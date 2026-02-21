@@ -30,6 +30,7 @@ const reimbursements = demoExpenseReports
     const emp = demoEmployees.find((e) => e.id === report.employeeId);
     const tdsRate = i % 3 === 0 ? 10 : 0;
     const tdsAmount = Math.round(report.totalAmount * (tdsRate / 100));
+    const rStatus = report.status as string;
     return {
       id: `reimb-${i + 1}`,
       reportId: report.id,
@@ -40,14 +41,14 @@ const reimbursements = demoExpenseReports
       grossAmount: report.totalAmount,
       tdsAmount,
       netAmount: report.totalAmount - tdsAmount,
-      status: report.status === "PAID" ? "PAID" : report.status === "PROCESSING" ? "PROCESSING" : "PENDING",
+      status: rStatus === "PAID" ? "PAID" : rStatus === "PROCESSING" ? "PROCESSING" : "PENDING" as const,
       paymentMethod: i % 2 === 0 ? "NEFT" : "IMPS",
-      utr: report.status === "PAID" ? `UTR${String(10000000 + i * 12345).slice(-10)}` : null,
+      utr: rStatus === "PAID" ? `UTR${String(10000000 + i * 12345).slice(-10)}` : null,
       bankAccount: `XXXX${String(1000 + i).slice(-4)}`,
       ifsc: "SBIN0001234",
       bankName: ["State Bank of India", "HDFC Bank", "ICICI Bank"][i % 3],
-      initiatedAt: report.status !== "PENDING" ? "2026-02-19T10:00:00Z" : null,
-      paidAt: report.status === "PAID" ? "2026-02-20T14:30:00Z" : null,
+      initiatedAt: rStatus === "APPROVED" ? null : "2026-02-19T10:00:00Z",
+      paidAt: rStatus === "PAID" ? "2026-02-20T14:30:00Z" : null,
     };
   });
 

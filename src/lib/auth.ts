@@ -1,11 +1,10 @@
-import { type NextAuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
+import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
 import { DEMO_USERS } from "./constants";
 
-export const authOptions: NextAuthOptions = {
+export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
-    CredentialsProvider({
-      name: "Credentials",
+    Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
@@ -13,7 +12,6 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        // Demo mode: check against demo users
         const user = DEMO_USERS.find(
           (u) => u.email === credentials.email && u.password === credentials.password
         );
@@ -27,7 +25,6 @@ export const authOptions: NextAuthOptions = {
           };
         }
 
-        // TODO: Check against Oracle DB when connected
         return null;
       },
     }),
@@ -53,7 +50,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
-    maxAge: 7 * 24 * 60 * 60, // 7 days
+    maxAge: 7 * 24 * 60 * 60,
   },
   secret: process.env.NEXTAUTH_SECRET || "dev-secret-change-in-production",
-};
+});
