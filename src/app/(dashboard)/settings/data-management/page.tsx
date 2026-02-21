@@ -18,7 +18,9 @@ import {
   Trash2,
   Database,
   FileDown,
+  UserCheck,
 } from "lucide-react";
+import { BulkAssignmentSection } from "@/components/hierarchy/bulk-assignment-section";
 
 // --------------- CSV TEMPLATE DEFINITIONS ---------------
 
@@ -467,6 +469,10 @@ export default function DataManagementPage() {
             <Upload className="w-3.5 h-3.5 mr-1.5" />
             Upload
           </TabsTrigger>
+          <TabsTrigger value="assign">
+            <UserCheck className="w-3.5 h-3.5 mr-1.5" />
+            Bulk Assign
+          </TabsTrigger>
           <TabsTrigger value="export">
             <Download className="w-3.5 h-3.5 mr-1.5" />
             Export
@@ -484,6 +490,11 @@ export default function DataManagementPage() {
               <UploadCard key={entity.key} entity={entity} />
             ))}
           </div>
+        </TabsContent>
+
+        {/* ==================== BULK ASSIGN TAB ==================== */}
+        <TabsContent value="assign" className="space-y-4">
+          <BulkAssignmentSection />
         </TabsContent>
 
         {/* ==================== EXPORT TAB ==================== */}

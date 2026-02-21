@@ -2784,3 +2784,67 @@ export function deleteScheduledCardAction(id: string): boolean {
   store.scheduledCardActions.splice(idx, 1);
   return true;
 }
+
+// =============================================================================
+// Hierarchy Employee Assignment
+// =============================================================================
+
+/**
+ * Assign a single employee to a hierarchy node.
+ * - If node type is DEPARTMENT, updates employee.departmentId.
+ * - If node type is COST_CENTER, updates employee.costCenterId
+ *   (and also sets departmentId to the cost center's parent department).
+ * Returns true on success, false if employee or node not found.
+ */
+export function assignEmployeeToNode(employeeId: string, nodeId: string): boolean {
+  const empIdx = store.employees.findIndex((e) => e.id === employeeId);
+  if (empIdx === -1) return false;
+
+  // Check if nodeId is a department
+  const dept = store.departments.find((d) => d.id === nodeId);
+  if (dept) {
+    store.employees[empIdx] = { ...store.employees[empIdx], departmentId: dept.id };
+    return true;
+  }
+
+  // Check if nodeId is a cost center
+  const cc = store.costCenters.find((c) => c.id === nodeId);
+  if (cc) {
+    store.employees[empIdx] = {
+      ...store.employees[empIdx],
+      costCenterId: cc.id,
+      departmentId: cc.departmentId || store.employees[empIdx].departmentId,
+    };
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Bulk assign multiple employees to a hierarchy node.
+ * Returns the count of successfully assigned employees.
+ */
+export function bulkAssignEmployeesToNode(employeeIds: string[], nodeId: string): number {
+  let count = 0;
+  for (const empId of employeeIds) {
+    if (assignEmployeeToNode(empId, nodeId)) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/**
+ * Find a hierarchy node by its code (searching departments and cost centers).
+ * Returns { type, id } or null.
+ */
+export function findHierarchyNodeByCode(code: string): { type: "department" | "costCenter"; id: string } | null {
+  const dept = store.departments.find((d) => d.code === code);
+  if (dept) return { type: "department", id: dept.id };
+
+  const cc = store.costCenters.find((c) => c.code === code);
+  if (cc) return { type: "costCenter", id: cc.id };
+
+  return null;
+}

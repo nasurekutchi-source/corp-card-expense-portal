@@ -6,8 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/page-header";
 import { Progress } from "@/components/ui/progress";
+import { AssignEmployeesTab } from "@/components/hierarchy/assign-employees-tab";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +43,7 @@ import {
   Loader2,
   FolderTree,
   Info,
+  UserPlus,
 } from "lucide-react";
 
 // =============================================================================
@@ -844,100 +847,121 @@ export default function HierarchyPage() {
         </Button>
       </PageHeader>
 
-      {/* Level Legend */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Info className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-muted-foreground">Hierarchy Levels</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <Tabs defaultValue="tree" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="tree">
+            <Network className="w-3.5 h-3.5 mr-1.5" />
+            Tree View
+          </TabsTrigger>
+          <TabsTrigger value="assign">
+            <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+            Assign Employees
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ==================== TREE VIEW TAB ==================== */}
+        <TabsContent value="tree" className="space-y-4">
+          {/* Level Legend */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Info className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground">Hierarchy Levels</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(Object.entries(HIERARCHY_LEVELS) as [NodeType, typeof HIERARCHY_LEVELS[NodeType]][]).map(([type, config]) => {
+                  const Icon = LEVEL_ICONS[type];
+                  return (
+                    <div
+                      key={type}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium ${LEVEL_BADGE_COLORS[type]} border`}
+                    >
+                      <Icon className="w-3 h-3" />
+                      <span>L{config.level}</span>
+                      <span>{config.label}</span>
+                      <Badge variant="secondary" className="ml-1 text-[9px] h-4 px-1">
+                        {nodeCounts[type]}
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {(Object.entries(HIERARCHY_LEVELS) as [NodeType, typeof HIERARCHY_LEVELS[NodeType]][]).map(([type, config]) => {
               const Icon = LEVEL_ICONS[type];
               return (
-                <div
-                  key={type}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium ${LEVEL_BADGE_COLORS[type]} border`}
-                >
-                  <Icon className="w-3 h-3" />
-                  <span>L{config.level}</span>
-                  <span>{config.label}</span>
-                  <Badge variant="secondary" className="ml-1 text-[9px] h-4 px-1">
-                    {nodeCounts[type]}
-                  </Badge>
-                </div>
+                <Card key={type}>
+                  <CardContent className="p-3 flex items-center gap-2">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${LEVEL_COLORS[type]}`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-lg font-bold">{nodeCounts[type]}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{config.label}s</p>
+                    </div>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {(Object.entries(HIERARCHY_LEVELS) as [NodeType, typeof HIERARCHY_LEVELS[NodeType]][]).map(([type, config]) => {
-          const Icon = LEVEL_ICONS[type];
-          return (
-            <Card key={type}>
-              <CardContent className="p-3 flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${LEVEL_COLORS[type]}`}>
-                  <Icon className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-lg font-bold">{nodeCounts[type]}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">{config.label}s</p>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search hierarchy nodes..."
-          className="pl-10"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
-
-      {/* Tree */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Network className="w-4 h-4" />
-            Organization Tree
-            {searchQuery && (
-              <Badge variant="secondary" className="ml-2 text-xs">
-                Filtered
-              </Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-0.5">
-            {filteredTree.length > 0 ? (
-              filteredTree.map((node) => (
-                <TreeNodeComponent
-                  key={node.id}
-                  node={node}
-                  searchQuery={searchQuery}
-                  onEdit={openEditDialog}
-                  onAddChild={openAddChildDialog}
-                />
-              ))
-            ) : (
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                {searchQuery
-                  ? `No nodes matching "${searchQuery}"`
-                  : "No hierarchy nodes found. Click \"Add Node\" to create one."}
-              </div>
-            )}
+          {/* Search */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search hierarchy nodes..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Tree */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Network className="w-4 h-4" />
+                Organization Tree
+                {searchQuery && (
+                  <Badge variant="secondary" className="ml-2 text-xs">
+                    Filtered
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-0.5">
+                {filteredTree.length > 0 ? (
+                  filteredTree.map((node) => (
+                    <TreeNodeComponent
+                      key={node.id}
+                      node={node}
+                      searchQuery={searchQuery}
+                      onEdit={openEditDialog}
+                      onAddChild={openAddChildDialog}
+                    />
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    {searchQuery
+                      ? `No nodes matching "${searchQuery}"`
+                      : "No hierarchy nodes found. Click \"Add Node\" to create one."}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ==================== ASSIGN EMPLOYEES TAB ==================== */}
+        <TabsContent value="assign">
+          <AssignEmployeesTab />
+        </TabsContent>
+      </Tabs>
 
       {/* ============================================================= */}
       {/* Add Node Dialog                                                */}
