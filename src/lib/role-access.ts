@@ -13,6 +13,9 @@ export interface ModuleConfig {
   perDiem: boolean;
   teamsIntegration: boolean;
   apExport: boolean;
+  virtualCardIssuance: boolean;
+  rbiLrs: boolean;
+  gstCompliance: boolean;
 }
 
 export const defaultModuleConfig: ModuleConfig = {
@@ -24,6 +27,9 @@ export const defaultModuleConfig: ModuleConfig = {
   perDiem: false,
   teamsIntegration: true,
   apExport: true,
+  virtualCardIssuance: true,
+  rbiLrs: false,
+  gstCompliance: false,
 };
 
 // ==================== NAV ACCESS ====================
@@ -49,37 +55,49 @@ export type NavSection =
   | "my_cards"
   | "my_transactions"
   | "my_expenses"
-  | "my_statements";
+  | "my_statements"
+  | "statements"
+  | "payments"
+  | "workflows"
+  | "disputes"
+  | "subscriptions"
+  | "scheduled_actions";
 
 const ROLE_NAV: Record<UserRole, NavSection[]> = {
   SYSTEM_ADMIN: [
     "dashboard", "hierarchy", "employees", "cards", "card_controls", "transactions",
     "expenses", "expense_reports", "approvals", "policies", "doa", "reimbursements",
     "ai_assistant", "reports", "settings", "integrations", "audit_trail", "data_management",
+    "statements", "payments", "workflows", "disputes", "subscriptions", "scheduled_actions",
   ],
   COMPANY_ADMIN: [
     "dashboard", "hierarchy", "employees", "cards", "card_controls", "transactions",
     "expenses", "expense_reports", "approvals", "policies", "doa", "reimbursements",
     "ai_assistant", "reports", "settings", "integrations", "data_management",
+    "statements", "payments", "workflows", "disputes", "subscriptions", "scheduled_actions",
   ],
   FINANCE_CONTROLLER: [
     "dashboard", "cards", "transactions",
     "expenses", "expense_reports", "approvals", "policies", "reimbursements",
     "reports", "integrations",
+    "statements", "payments", "disputes",
   ],
   DEPT_MANAGER: [
     "dashboard", "cards", "transactions",
     "expenses", "expense_reports", "approvals",
     "reports",
+    "statements", "workflows", "disputes",
   ],
   EMPLOYEE: [
     "dashboard", "my_cards", "my_transactions",
     "my_expenses", "my_statements",
+    "disputes",
   ],
   AUDITOR: [
     "dashboard", "cards", "transactions",
     "expenses", "expense_reports", "approvals", "policies", "doa", "reimbursements",
     "reports", "audit_trail",
+    "statements", "payments", "workflows", "disputes", "subscriptions",
   ],
 };
 

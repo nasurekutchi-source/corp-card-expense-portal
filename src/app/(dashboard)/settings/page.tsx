@@ -147,6 +147,9 @@ export default function SettingsPage() {
                 { key: "perDiem", label: "Per Diem", desc: "Automatic per diem allowance calculation by city tier", icon: Building2 },
                 { key: "teamsIntegration", label: "Microsoft Teams Integration", desc: "Submit and approve expenses from Teams", icon: Users },
                 { key: "apExport", label: "AP Export", desc: "Export to Tally, SAP, or custom AP systems", icon: Layers },
+                { key: "virtualCardIssuance", label: "Virtual Card Issuance", desc: "Instant virtual card creation for employees (single-use and recurring)", icon: CreditCard },
+                { key: "rbiLrs", label: "RBI LRS Compliance", desc: "Liberalised Remittance Scheme tracking for international card spends", icon: Globe },
+                { key: "gstCompliance", label: "GST Compliance", desc: "GSTIN validation, HSN/SAC lookup, CGST/SGST/IGST auto-calculation", icon: Receipt },
               ].map((mod) => (
                 <div key={mod.key} className="flex items-center gap-4 py-3 px-2 rounded-md hover:bg-muted/50">
                   <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">

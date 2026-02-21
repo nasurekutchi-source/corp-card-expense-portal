@@ -108,7 +108,7 @@ function CardVisual({ card }: { card: CardData }) {
 export default function CardsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const employeeIdFilter = searchParams.get("employeeId");
+  const employeeIdFilter = searchParams?.get("employeeId") ?? null;
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [loadingCardId, setLoadingCardId] = useState<string | null>(null);

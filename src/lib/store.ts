@@ -26,6 +26,14 @@ import {
   demoCardControlPolicies,
   doaAuthorityLevels as demoDoaAuthorityLevels,
   doaApprovalMatrix as demoDoaApprovalMatrix,
+  demoCardStatements,
+  demoCorporateStatements,
+  demoPaymentCycles,
+  demoPaymentApportionments,
+  demoWorkflowRequests,
+  demoDisputes,
+  demoDetectedSubscriptions,
+  demoScheduledCardActions,
 } from "./demo-data";
 
 // =============================================================================
@@ -268,6 +276,168 @@ export interface DoaApprovalRule {
   approvers: string;
 }
 
+// =============================================================================
+// Statement Types
+// =============================================================================
+
+export interface CardStatement {
+  id: string;
+  cardId: string;
+  cardLast4: string;
+  employeeId: string;
+  employeeName: string;
+  companyId: string;
+  statementPeriod: string;
+  openingBalance: number;
+  closingBalance: number;
+  totalDebits: number;
+  totalCredits: number;
+  minimumDue: number;
+  dueDate: string;
+  status: string;
+  transactionCount: number;
+  generatedAt: string;
+}
+
+export interface CorporateStatement {
+  id: string;
+  companyId: string;
+  companyName: string;
+  statementPeriod: string;
+  totalCards: number;
+  totalTransactions: number;
+  totalAmount: number;
+  totalGst: number;
+  dueDate: string;
+  status: string;
+  generatedAt: string;
+}
+
+// =============================================================================
+// Payment Cycle Types
+// =============================================================================
+
+export interface PaymentCycle {
+  id: string;
+  companyId: string;
+  companyName: string;
+  statementPeriod: string;
+  dueDate: string;
+  totalDue: number;
+  status: string;
+  paymentRef: string;
+  paymentDate: string | null;
+  paymentMode: string | null;
+  apportionmentStatus: string;
+  cardCount: number;
+}
+
+export interface PaymentApportionment {
+  id: string;
+  paymentCycleId: string;
+  cardId: string;
+  cardLast4: string;
+  employeeId: string;
+  employeeName: string;
+  departmentName: string;
+  costCenterName: string;
+  amount: number;
+  status: string;
+}
+
+// =============================================================================
+// Workflow Request Types
+// =============================================================================
+
+export interface WorkflowApprovalStep {
+  name: string;
+  role: string;
+  status: string;
+  date: string | null;
+}
+
+export interface WorkflowComment {
+  author: string;
+  text: string;
+  date: string;
+}
+
+export interface WorkflowRequest {
+  id: string;
+  type: string;
+  requestorId: string;
+  requestorName: string;
+  department: string;
+  status: string;
+  details: Record<string, unknown>;
+  currentApprover: string;
+  approvalChain: WorkflowApprovalStep[];
+  createdAt: string;
+  updatedAt: string;
+  comments: WorkflowComment[];
+}
+
+// =============================================================================
+// Dispute Types
+// =============================================================================
+
+export interface Dispute {
+  id: string;
+  transactionId: string;
+  cardId: string;
+  cardLast4: string;
+  employeeId: string;
+  employeeName: string;
+  amount: number;
+  reason: string;
+  description: string;
+  status: string;
+  provisionalCreditAmount: number | null;
+  provisionalCreditDate: string | null;
+  resolution: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+}
+
+// =============================================================================
+// Subscription Detection Types
+// =============================================================================
+
+export interface DetectedSubscription {
+  id: string;
+  cardId: string;
+  cardLast4: string;
+  employeeId: string;
+  employeeName: string;
+  merchantName: string;
+  mcc: string;
+  frequency: string;
+  lastChargeDate: string;
+  lastChargeAmount: number;
+  avgAmount: number;
+  totalCharges: number;
+  isActive: boolean;
+  detectedAt: string;
+}
+
+// =============================================================================
+// Scheduled Card Action Types
+// =============================================================================
+
+export interface ScheduledCardAction {
+  id: string;
+  cardId: string;
+  cardLast4: string;
+  employeeId: string;
+  employeeName: string;
+  actionType: string;
+  scheduledDate: string;
+  recurrence: string;
+  status: string;
+  details: Record<string, unknown>;
+  createdAt: string;
+}
+
 // -- Computed types --
 
 export interface DashboardStats {
@@ -415,6 +585,14 @@ export interface Store {
   cardControlPolicies: CardControlPolicy[];
   doaAuthorityLevels: DoaAuthorityLevel[];
   doaApprovalMatrix: DoaApprovalRule[];
+  cardStatements: CardStatement[];
+  corporateStatements: CorporateStatement[];
+  paymentCycles: PaymentCycle[];
+  paymentApportionments: PaymentApportionment[];
+  workflowRequests: WorkflowRequest[];
+  disputes: Dispute[];
+  detectedSubscriptions: DetectedSubscription[];
+  scheduledCardActions: ScheduledCardAction[];
 }
 
 // =============================================================================
@@ -448,6 +626,14 @@ function buildInitialStore(): Store {
     cardControlPolicies: deepClone(demoCardControlPolicies) as CardControlPolicy[],
     doaAuthorityLevels: deepClone(demoDoaAuthorityLevels) as DoaAuthorityLevel[],
     doaApprovalMatrix: deepClone(demoDoaApprovalMatrix) as DoaApprovalRule[],
+    cardStatements: deepClone(demoCardStatements) as CardStatement[],
+    corporateStatements: deepClone(demoCorporateStatements) as CorporateStatement[],
+    paymentCycles: deepClone(demoPaymentCycles) as PaymentCycle[],
+    paymentApportionments: deepClone(demoPaymentApportionments) as PaymentApportionment[],
+    workflowRequests: deepClone(demoWorkflowRequests) as WorkflowRequest[],
+    disputes: deepClone(demoDisputes) as Dispute[],
+    detectedSubscriptions: deepClone(demoDetectedSubscriptions) as DetectedSubscription[],
+    scheduledCardActions: deepClone(demoScheduledCardActions) as ScheduledCardAction[],
   };
 }
 
@@ -470,6 +656,9 @@ export interface ModuleConfig {
   perDiem: boolean;
   teamsIntegration: boolean;
   apExport: boolean;
+  virtualCardIssuance: boolean;
+  rbiLrs: boolean;
+  gstCompliance: boolean;
 }
 
 let moduleConfig: ModuleConfig = {
@@ -481,6 +670,9 @@ let moduleConfig: ModuleConfig = {
   perDiem: false,
   teamsIntegration: true,
   apExport: true,
+  virtualCardIssuance: true,
+  rbiLrs: false,
+  gstCompliance: false,
 };
 
 export function getModuleConfig(): ModuleConfig {
@@ -2149,4 +2341,446 @@ export function getEmployeeDashboard(employeeId: string): EmployeeDashboardData 
     totalSpendMTD: Math.round(totalSpendMTD),
     totalSpendLastMonth: Math.round(totalSpendLastMonth),
   };
+}
+
+// =============================================================================
+// Card Statement CRUD
+// =============================================================================
+
+export interface CardStatementFilters {
+  cardId?: string;
+  employeeId?: string;
+  companyId?: string;
+  statementPeriod?: string;
+  status?: string;
+  search?: string;
+}
+
+export function getCardStatements(filters?: CardStatementFilters): CardStatement[] {
+  let result = store.cardStatements;
+  if (!filters) return result;
+  if (filters.cardId) result = result.filter((s) => s.cardId === filters.cardId);
+  if (filters.employeeId) result = result.filter((s) => s.employeeId === filters.employeeId);
+  if (filters.companyId) result = result.filter((s) => s.companyId === filters.companyId);
+  if (filters.statementPeriod) result = result.filter((s) => s.statementPeriod === filters.statementPeriod);
+  if (filters.status) result = result.filter((s) => s.status === filters.status);
+  if (filters.search) {
+    const s = filters.search.toLowerCase();
+    result = result.filter((st) => st.employeeName.toLowerCase().includes(s) || st.cardLast4.includes(s));
+  }
+  return result;
+}
+
+export function getCardStatement(id: string): CardStatement | undefined {
+  return store.cardStatements.find((s) => s.id === id);
+}
+
+export function addCardStatement(data: Partial<CardStatement>): CardStatement {
+  const stmt: CardStatement = {
+    id: data.id || `stmt-${generateId()}`,
+    cardId: "", cardLast4: "", employeeId: "", employeeName: "", companyId: "",
+    statementPeriod: "", openingBalance: 0, closingBalance: 0, totalDebits: 0,
+    totalCredits: 0, minimumDue: 0, dueDate: "", status: "GENERATED",
+    transactionCount: 0, generatedAt: new Date().toISOString(),
+    ...data,
+  };
+  store.cardStatements.push(stmt);
+  return stmt;
+}
+
+export function updateCardStatement(id: string, updates: Partial<CardStatement>): CardStatement | null {
+  const idx = store.cardStatements.findIndex((s) => s.id === id);
+  if (idx === -1) return null;
+  store.cardStatements[idx] = { ...store.cardStatements[idx], ...updates, id };
+  return store.cardStatements[idx];
+}
+
+// =============================================================================
+// Corporate Statement CRUD
+// =============================================================================
+
+export interface CorporateStatementFilters {
+  companyId?: string;
+  statementPeriod?: string;
+  status?: string;
+}
+
+export function getCorporateStatements(filters?: CorporateStatementFilters): CorporateStatement[] {
+  let result = store.corporateStatements;
+  if (!filters) return result;
+  if (filters.companyId) result = result.filter((s) => s.companyId === filters.companyId);
+  if (filters.statementPeriod) result = result.filter((s) => s.statementPeriod === filters.statementPeriod);
+  if (filters.status) result = result.filter((s) => s.status === filters.status);
+  return result;
+}
+
+export function getCorporateStatement(id: string): CorporateStatement | undefined {
+  return store.corporateStatements.find((s) => s.id === id);
+}
+
+export function addCorporateStatement(data: Partial<CorporateStatement>): CorporateStatement {
+  const stmt: CorporateStatement = {
+    id: data.id || `corp-stmt-${generateId()}`,
+    companyId: "", companyName: "", statementPeriod: "", totalCards: 0,
+    totalTransactions: 0, totalAmount: 0, totalGst: 0, dueDate: "",
+    status: "GENERATED", generatedAt: new Date().toISOString(),
+    ...data,
+  };
+  store.corporateStatements.push(stmt);
+  return stmt;
+}
+
+export function updateCorporateStatement(id: string, updates: Partial<CorporateStatement>): CorporateStatement | null {
+  const idx = store.corporateStatements.findIndex((s) => s.id === id);
+  if (idx === -1) return null;
+  store.corporateStatements[idx] = { ...store.corporateStatements[idx], ...updates, id };
+  return store.corporateStatements[idx];
+}
+
+// =============================================================================
+// Payment Cycle CRUD
+// =============================================================================
+
+export interface PaymentCycleFilters {
+  companyId?: string;
+  statementPeriod?: string;
+  status?: string;
+}
+
+export function getPaymentCycles(filters?: PaymentCycleFilters): PaymentCycle[] {
+  let result = store.paymentCycles;
+  if (!filters) return result;
+  if (filters.companyId) result = result.filter((p) => p.companyId === filters.companyId);
+  if (filters.statementPeriod) result = result.filter((p) => p.statementPeriod === filters.statementPeriod);
+  if (filters.status) result = result.filter((p) => p.status === filters.status);
+  return result;
+}
+
+export function getPaymentCycle(id: string): PaymentCycle | undefined {
+  return store.paymentCycles.find((p) => p.id === id);
+}
+
+export function addPaymentCycle(data: Partial<PaymentCycle>): PaymentCycle {
+  const cycle: PaymentCycle = {
+    id: data.id || `pmt-cycle-${generateId()}`,
+    companyId: "", companyName: "", statementPeriod: "", dueDate: "",
+    totalDue: 0, status: "DUE", paymentRef: "", paymentDate: null,
+    paymentMode: null, apportionmentStatus: "PENDING", cardCount: 0,
+    ...data,
+  };
+  store.paymentCycles.push(cycle);
+  return cycle;
+}
+
+export function updatePaymentCycle(id: string, updates: Partial<PaymentCycle>): PaymentCycle | null {
+  const idx = store.paymentCycles.findIndex((p) => p.id === id);
+  if (idx === -1) return null;
+  store.paymentCycles[idx] = { ...store.paymentCycles[idx], ...updates, id };
+  return store.paymentCycles[idx];
+}
+
+// =============================================================================
+// Payment Apportionment CRUD
+// =============================================================================
+
+export interface PaymentApportionmentFilters {
+  paymentCycleId?: string;
+  employeeId?: string;
+  status?: string;
+}
+
+export function getPaymentApportionments(filters?: PaymentApportionmentFilters): PaymentApportionment[] {
+  let result = store.paymentApportionments;
+  if (!filters) return result;
+  if (filters.paymentCycleId) result = result.filter((a) => a.paymentCycleId === filters.paymentCycleId);
+  if (filters.employeeId) result = result.filter((a) => a.employeeId === filters.employeeId);
+  if (filters.status) result = result.filter((a) => a.status === filters.status);
+  return result;
+}
+
+export function getPaymentApportionment(id: string): PaymentApportionment | undefined {
+  return store.paymentApportionments.find((a) => a.id === id);
+}
+
+export function addPaymentApportionment(data: Partial<PaymentApportionment>): PaymentApportionment {
+  const apportionment: PaymentApportionment = {
+    id: data.id || `pmt-appr-${generateId()}`,
+    paymentCycleId: "", cardId: "", cardLast4: "", employeeId: "",
+    employeeName: "", departmentName: "", costCenterName: "",
+    amount: 0, status: "PENDING",
+    ...data,
+  };
+  store.paymentApportionments.push(apportionment);
+  return apportionment;
+}
+
+export function updatePaymentApportionment(id: string, updates: Partial<PaymentApportionment>): PaymentApportionment | null {
+  const idx = store.paymentApportionments.findIndex((a) => a.id === id);
+  if (idx === -1) return null;
+  store.paymentApportionments[idx] = { ...store.paymentApportionments[idx], ...updates, id };
+  return store.paymentApportionments[idx];
+}
+
+// =============================================================================
+// Workflow Request CRUD
+// =============================================================================
+
+export interface WorkflowRequestFilters {
+  type?: string;
+  status?: string;
+  requestorId?: string;
+  search?: string;
+}
+
+export function getWorkflowRequests(filters?: WorkflowRequestFilters): WorkflowRequest[] {
+  let result = store.workflowRequests;
+  if (!filters) return result;
+  if (filters.type) result = result.filter((w) => w.type === filters.type);
+  if (filters.status) result = result.filter((w) => w.status === filters.status);
+  if (filters.requestorId) result = result.filter((w) => w.requestorId === filters.requestorId);
+  if (filters.search) {
+    const s = filters.search.toLowerCase();
+    result = result.filter((w) => w.requestorName.toLowerCase().includes(s) || w.department.toLowerCase().includes(s) || w.type.toLowerCase().includes(s));
+  }
+  return result;
+}
+
+export function getWorkflowRequest(id: string): WorkflowRequest | undefined {
+  return store.workflowRequests.find((w) => w.id === id);
+}
+
+export function addWorkflowRequest(data: Partial<WorkflowRequest>): WorkflowRequest {
+  const request: WorkflowRequest = {
+    id: data.id || `wf-${generateId()}`,
+    type: "CARD_REQUEST", requestorId: "", requestorName: "", department: "",
+    status: "PENDING", details: {}, currentApprover: "", approvalChain: [],
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    comments: [],
+    ...data,
+  };
+  store.workflowRequests.push(request);
+  return request;
+}
+
+export function updateWorkflowRequest(id: string, updates: Partial<WorkflowRequest>): WorkflowRequest | null {
+  const idx = store.workflowRequests.findIndex((w) => w.id === id);
+  if (idx === -1) return null;
+  store.workflowRequests[idx] = {
+    ...store.workflowRequests[idx], ...updates, id,
+    updatedAt: new Date().toISOString(),
+  };
+  return store.workflowRequests[idx];
+}
+
+export function approveWorkflowStep(id: string, approverName: string, comment?: string): WorkflowRequest | null {
+  const idx = store.workflowRequests.findIndex((w) => w.id === id);
+  if (idx === -1) return null;
+  const wf = store.workflowRequests[idx];
+  const chain = [...wf.approvalChain];
+  const stepIdx = chain.findIndex((s) => s.name === approverName && s.status === "PENDING");
+  if (stepIdx !== -1) {
+    chain[stepIdx] = { ...chain[stepIdx], status: "APPROVED", date: new Date().toISOString() };
+  }
+  const allApproved = chain.every((s) => s.status === "APPROVED");
+  const nextPending = chain.find((s) => s.status === "PENDING");
+  const comments = [...wf.comments];
+  if (comment) comments.push({ author: approverName, text: comment, date: new Date().toISOString() });
+  store.workflowRequests[idx] = {
+    ...wf, approvalChain: chain,
+    status: allApproved ? "APPROVED" : "PENDING",
+    currentApprover: nextPending?.name || "",
+    updatedAt: new Date().toISOString(),
+    comments,
+  };
+  return store.workflowRequests[idx];
+}
+
+export function rejectWorkflowStep(id: string, approverName: string, comment?: string): WorkflowRequest | null {
+  const idx = store.workflowRequests.findIndex((w) => w.id === id);
+  if (idx === -1) return null;
+  const wf = store.workflowRequests[idx];
+  const chain = [...wf.approvalChain];
+  const stepIdx = chain.findIndex((s) => s.name === approverName && s.status === "PENDING");
+  if (stepIdx !== -1) {
+    chain[stepIdx] = { ...chain[stepIdx], status: "REJECTED", date: new Date().toISOString() };
+  }
+  const comments = [...wf.comments];
+  if (comment) comments.push({ author: approverName, text: comment, date: new Date().toISOString() });
+  store.workflowRequests[idx] = {
+    ...wf, approvalChain: chain, status: "REJECTED",
+    currentApprover: "", updatedAt: new Date().toISOString(), comments,
+  };
+  return store.workflowRequests[idx];
+}
+
+// =============================================================================
+// Dispute CRUD
+// =============================================================================
+
+export interface DisputeFilters {
+  status?: string;
+  employeeId?: string;
+  cardId?: string;
+  search?: string;
+}
+
+export function getDisputes(filters?: DisputeFilters): Dispute[] {
+  let result = store.disputes;
+  if (!filters) return result;
+  if (filters.status) result = result.filter((d) => d.status === filters.status);
+  if (filters.employeeId) result = result.filter((d) => d.employeeId === filters.employeeId);
+  if (filters.cardId) result = result.filter((d) => d.cardId === filters.cardId);
+  if (filters.search) {
+    const s = filters.search.toLowerCase();
+    result = result.filter((d) => d.employeeName.toLowerCase().includes(s) || d.reason.toLowerCase().includes(s) || d.cardLast4.includes(s));
+  }
+  return result;
+}
+
+export function getDispute(id: string): Dispute | undefined {
+  return store.disputes.find((d) => d.id === id);
+}
+
+export function addDispute(data: Partial<Dispute>): Dispute {
+  let cardLast4 = data.cardLast4 || "";
+  let employeeName = data.employeeName || "";
+  let amount = data.amount || 0;
+  if (data.transactionId) {
+    const txn = getTransaction(data.transactionId);
+    if (txn) {
+      if (!data.cardId) data.cardId = txn.cardId;
+      if (!data.cardLast4) cardLast4 = txn.cardLast4;
+      if (!data.employeeId) data.employeeId = txn.employeeId;
+      if (!data.employeeName) employeeName = txn.employeeName;
+      if (!data.amount) amount = txn.amount;
+    }
+  }
+  const dispute: Dispute = {
+    id: data.id || `disp-${generateId()}`,
+    transactionId: "", cardId: "", employeeId: "",
+    reason: "", description: "", status: "RAISED",
+    provisionalCreditAmount: null, provisionalCreditDate: null,
+    resolution: null, resolvedAt: null, createdAt: new Date().toISOString(),
+    ...data, cardLast4, employeeName, amount,
+  };
+  store.disputes.push(dispute);
+  return dispute;
+}
+
+export function updateDispute(id: string, updates: Partial<Dispute>): Dispute | null {
+  const idx = store.disputes.findIndex((d) => d.id === id);
+  if (idx === -1) return null;
+  store.disputes[idx] = { ...store.disputes[idx], ...updates, id };
+  return store.disputes[idx];
+}
+
+// =============================================================================
+// Detected Subscription CRUD
+// =============================================================================
+
+export interface SubscriptionFilters {
+  cardId?: string;
+  employeeId?: string;
+  isActive?: boolean;
+  frequency?: string;
+  search?: string;
+}
+
+export function getDetectedSubscriptions(filters?: SubscriptionFilters): DetectedSubscription[] {
+  let result = store.detectedSubscriptions;
+  if (!filters) return result;
+  if (filters.cardId) result = result.filter((s) => s.cardId === filters.cardId);
+  if (filters.employeeId) result = result.filter((s) => s.employeeId === filters.employeeId);
+  if (filters.isActive !== undefined) result = result.filter((s) => s.isActive === filters.isActive);
+  if (filters.frequency) result = result.filter((s) => s.frequency === filters.frequency);
+  if (filters.search) {
+    const s = filters.search.toLowerCase();
+    result = result.filter((sub) => sub.merchantName.toLowerCase().includes(s) || sub.employeeName.toLowerCase().includes(s));
+  }
+  return result;
+}
+
+export function getDetectedSubscription(id: string): DetectedSubscription | undefined {
+  return store.detectedSubscriptions.find((s) => s.id === id);
+}
+
+export function addDetectedSubscription(data: Partial<DetectedSubscription>): DetectedSubscription {
+  const sub: DetectedSubscription = {
+    id: data.id || `sub-${generateId()}`,
+    cardId: "", cardLast4: "", employeeId: "", employeeName: "",
+    merchantName: "", mcc: "", frequency: "MONTHLY",
+    lastChargeDate: "", lastChargeAmount: 0, avgAmount: 0,
+    totalCharges: 0, isActive: true, detectedAt: new Date().toISOString(),
+    ...data,
+  };
+  store.detectedSubscriptions.push(sub);
+  return sub;
+}
+
+export function updateDetectedSubscription(id: string, updates: Partial<DetectedSubscription>): DetectedSubscription | null {
+  const idx = store.detectedSubscriptions.findIndex((s) => s.id === id);
+  if (idx === -1) return null;
+  store.detectedSubscriptions[idx] = { ...store.detectedSubscriptions[idx], ...updates, id };
+  return store.detectedSubscriptions[idx];
+}
+
+// =============================================================================
+// Scheduled Card Action CRUD
+// =============================================================================
+
+export interface ScheduledActionFilters {
+  cardId?: string;
+  employeeId?: string;
+  status?: string;
+  actionType?: string;
+}
+
+export function getScheduledCardActions(filters?: ScheduledActionFilters): ScheduledCardAction[] {
+  let result = store.scheduledCardActions;
+  if (!filters) return result;
+  if (filters.cardId) result = result.filter((a) => a.cardId === filters.cardId);
+  if (filters.employeeId) result = result.filter((a) => a.employeeId === filters.employeeId);
+  if (filters.status) result = result.filter((a) => a.status === filters.status);
+  if (filters.actionType) result = result.filter((a) => a.actionType === filters.actionType);
+  return result;
+}
+
+export function getScheduledCardAction(id: string): ScheduledCardAction | undefined {
+  return store.scheduledCardActions.find((a) => a.id === id);
+}
+
+export function addScheduledCardAction(data: Partial<ScheduledCardAction>): ScheduledCardAction {
+  let cardLast4 = data.cardLast4 || "";
+  let employeeName = data.employeeName || "";
+  if (data.cardId && !data.cardLast4) {
+    const card = getCard(data.cardId);
+    if (card) {
+      cardLast4 = card.last4Digits;
+      if (!data.employeeId) data.employeeId = card.employeeId;
+      if (!data.employeeName) employeeName = card.employeeName;
+    }
+  }
+  const action: ScheduledCardAction = {
+    id: data.id || `sca-${generateId()}`,
+    cardId: "", employeeId: "",
+    actionType: "FREEZE", scheduledDate: "", recurrence: "ONCE",
+    status: "PENDING", details: {}, createdAt: new Date().toISOString(),
+    ...data, cardLast4, employeeName,
+  };
+  store.scheduledCardActions.push(action);
+  return action;
+}
+
+export function updateScheduledCardAction(id: string, updates: Partial<ScheduledCardAction>): ScheduledCardAction | null {
+  const idx = store.scheduledCardActions.findIndex((a) => a.id === id);
+  if (idx === -1) return null;
+  store.scheduledCardActions[idx] = { ...store.scheduledCardActions[idx], ...updates, id };
+  return store.scheduledCardActions[idx];
+}
+
+export function deleteScheduledCardAction(id: string): boolean {
+  const idx = store.scheduledCardActions.findIndex((a) => a.id === id);
+  if (idx === -1) return false;
+  store.scheduledCardActions.splice(idx, 1);
+  return true;
 }

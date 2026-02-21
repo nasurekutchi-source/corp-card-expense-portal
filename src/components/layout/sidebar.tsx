@@ -32,6 +32,12 @@ import {
   SlidersHorizontal,
   Database,
   BookOpen,
+  FileBarChart,
+  Wallet,
+  GitPullRequest,
+  AlertTriangle,
+  Repeat,
+  Calendar,
 } from "lucide-react";
 
 interface NavItem {
@@ -97,6 +103,14 @@ function getNavGroups(role: UserRole, mc: import("@/lib/role-access").ModuleConf
     cardItems.push({ label: "Card Management", href: "/cards", icon: CreditCard, section: "cards" });
   if (canAccessNav(role, "transactions", mc))
     cardItems.push({ label: "Transactions", href: "/transactions", icon: ArrowRightLeft, section: "transactions" });
+  if (canAccessNav(role, "statements", mc))
+    cardItems.push({ label: "Statements", href: "/statements", icon: FileBarChart, section: "statements" });
+  if (canAccessNav(role, "payments", mc))
+    cardItems.push({ label: "Payments", href: "/payments", icon: Wallet, section: "payments" });
+  if (canAccessNav(role, "disputes", mc))
+    cardItems.push({ label: "Disputes", href: "/disputes", icon: AlertTriangle, section: "disputes" });
+  if (canAccessNav(role, "workflows", mc))
+    cardItems.push({ label: "Workflows", href: "/workflows", icon: GitPullRequest, section: "workflows" });
   if (cardItems.length > 0)
     groups.push({ label: "Card Portal", items: cardItems });
 
@@ -137,6 +151,10 @@ function getNavGroups(role: UserRole, mc: import("@/lib/role-access").ModuleConf
     adminItems.push({ label: "Expense Policies", href: "/policies", icon: Shield, section: "policies" });
   if (mc.expenseManagement && canAccessNav(role, "doa", mc))
     adminItems.push({ label: "DOA Config", href: "/doa", icon: Scale, section: "doa" });
+  if (canAccessNav(role, "subscriptions", mc))
+    adminItems.push({ label: "Subscriptions", href: "/subscriptions", icon: Repeat, section: "subscriptions" });
+  if (canAccessNav(role, "scheduled_actions", mc))
+    adminItems.push({ label: "Scheduled Actions", href: "/scheduled-actions", icon: Calendar, section: "scheduled_actions" });
   if (canAccessNav(role, "settings", mc))
     adminItems.push({ label: "Settings", href: "/settings", icon: Settings, section: "settings" });
   if (canAccessNav(role, "integrations", mc))

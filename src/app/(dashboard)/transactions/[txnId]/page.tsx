@@ -150,47 +150,49 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ tx
             </CardContent>
           </Card>
 
-          <Tabs defaultValue="receipt" className="space-y-3">
+          <Tabs defaultValue={mc.expenseManagement ? "receipt" : "notes"} className="space-y-3">
             <TabsList>
-              <TabsTrigger value="receipt">Receipt</TabsTrigger>
+              {mc.expenseManagement && <TabsTrigger value="receipt">Receipt</TabsTrigger>}
               <TabsTrigger value="notes">Notes & Tags</TabsTrigger>
               <TabsTrigger value="dispute">Dispute</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="receipt">
-              <Card>
-                <CardContent className="p-6">
-                  {txn.hasReceipt ? (
-                    <div className="text-center">
-                      <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center mb-3">
-                        <Receipt className="w-12 h-12 text-muted-foreground/30" />
+            {mc.expenseManagement && (
+              <TabsContent value="receipt">
+                <Card>
+                  <CardContent className="p-6">
+                    {txn.hasReceipt ? (
+                      <div className="text-center">
+                        <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center mb-3">
+                          <Receipt className="w-12 h-12 text-muted-foreground/30" />
+                        </div>
+                        <p className="text-sm text-muted-foreground">Receipt uploaded via mobile camera</p>
+                        <div className="flex justify-center gap-2 mt-3">
+                          <Button variant="outline" size="sm">View Full</Button>
+                          <Button variant="outline" size="sm">Re-upload</Button>
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground">Receipt uploaded via mobile camera</p>
-                      <div className="flex justify-center gap-2 mt-3">
-                        <Button variant="outline" size="sm">View Full</Button>
-                        <Button variant="outline" size="sm">Re-upload</Button>
+                    ) : (
+                      <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                        <Camera className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
+                        <p className="font-medium text-sm">No receipt attached</p>
+                        <p className="text-xs text-muted-foreground mt-1">Upload a receipt image or PDF</p>
+                        <div className="flex justify-center gap-2 mt-4">
+                          <Button variant="outline" size="sm">
+                            <Upload className="w-3 h-3 mr-1" />
+                            Upload
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <Camera className="w-3 h-3 mr-1" />
+                            Camera
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                      <Camera className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
-                      <p className="font-medium text-sm">No receipt attached</p>
-                      <p className="text-xs text-muted-foreground mt-1">Upload a receipt image or PDF</p>
-                      <div className="flex justify-center gap-2 mt-4">
-                        <Button variant="outline" size="sm">
-                          <Upload className="w-3 h-3 mr-1" />
-                          Upload
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Camera className="w-3 h-3 mr-1" />
-                          Camera
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
 
             <TabsContent value="notes">
               <Card>
@@ -259,7 +261,7 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ tx
                 {[
                   { label: "Authorization", time: txn.timestamp, status: "done" },
                   { label: "Notification sent", time: txn.timestamp, status: "done" },
-                  { label: "Receipt captured", time: txn.hasReceipt ? txn.timestamp : null, status: txn.hasReceipt ? "done" : "pending" },
+                  ...(mc.expenseManagement ? [{ label: "Receipt captured", time: txn.hasReceipt ? txn.timestamp : null, status: txn.hasReceipt ? "done" : "pending" }] : []),
                   { label: "Settlement", time: txn.status === "SETTLED" ? txn.timestamp : null, status: txn.status === "SETTLED" ? "done" : "pending" },
                   ...(mc.expenseManagement ? [{ label: "Expense created", time: null, status: "pending" }] : []),
                 ].map((step, i, arr) => (

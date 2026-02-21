@@ -454,6 +454,349 @@ export const employeeDashboardData = {
   totalSpendLastMonth: 165000,
 };
 
+// ==================== CARD STATEMENTS ====================
+export const demoCardStatements = demoCards.slice(0, 12).flatMap((card, i) => {
+  const emp = demoEmployees.find((e) => e.id === card.employeeId);
+  const empName = emp ? `${emp.firstName} ${emp.lastName}` : "";
+  return ["2026-01", "2025-12", "2025-11"].map((period, j) => {
+    const totalDebits = Math.round((Math.random() * 80000 + 10000) * 100) / 100;
+    const totalCredits = j > 0 ? Math.round(totalDebits * (0.9 + Math.random() * 0.1) * 100) / 100 : 0;
+    const openingBalance = j > 0 ? Math.round(Math.random() * 20000 * 100) / 100 : 0;
+    const closingBalance = Math.round((openingBalance + totalDebits - totalCredits) * 100) / 100;
+    const statuses = ["GENERATED", "SENT", "PAID", "OVERDUE"] as const;
+    const status = j === 0 ? "GENERATED" : j === 1 ? "SENT" : statuses[i % statuses.length];
+    return {
+      id: `stmt-${i * 3 + j + 1}`,
+      cardId: card.id,
+      cardLast4: card.last4Digits,
+      employeeId: card.employeeId,
+      employeeName: empName,
+      companyId: "comp-1",
+      statementPeriod: period,
+      openingBalance,
+      closingBalance,
+      totalDebits,
+      totalCredits,
+      minimumDue: Math.round(closingBalance * 0.05 * 100) / 100,
+      dueDate: period === "2026-01" ? "2026-02-25" : period === "2025-12" ? "2026-01-25" : "2025-12-25",
+      status,
+      transactionCount: Math.floor(Math.random() * 20) + 3,
+      generatedAt: `${period}-20T00:00:00Z`,
+    };
+  });
+});
+
+// ==================== CORPORATE STATEMENTS ====================
+export const demoCorporateStatements = demoCompanies.flatMap((company, i) =>
+  ["2026-01", "2025-12", "2025-11"].map((period, j) => {
+    const cardCount = demoCards.length / demoCompanies.length;
+    const totalAmount = Math.round((Math.random() * 500000 + 200000) * 100) / 100;
+    const statuses = ["GENERATED", "SENT", "PAID"] as const;
+    return {
+      id: `corp-stmt-${i * 3 + j + 1}`,
+      companyId: company.id,
+      companyName: company.name,
+      statementPeriod: period,
+      totalCards: Math.floor(cardCount),
+      totalTransactions: Math.floor(Math.random() * 100) + 30,
+      totalAmount,
+      totalGst: Math.round(totalAmount * 0.18 * 100) / 100,
+      dueDate: period === "2026-01" ? "2026-02-25" : period === "2025-12" ? "2026-01-25" : "2025-12-25",
+      status: statuses[j % statuses.length],
+      generatedAt: `${period}-20T00:00:00Z`,
+    };
+  })
+);
+
+// ==================== PAYMENT CYCLES ====================
+export const demoPaymentCycles = demoCompanies.flatMap((company, i) =>
+  ["2026-01", "2025-12", "2025-11"].map((period, j) => {
+    const totalDue = Math.round((Math.random() * 600000 + 200000) * 100) / 100;
+    const statuses = ["DUE", "PAYMENT_INITIATED", "PAYMENT_RECEIVED", "APPORTIONED", "RECONCILED"] as const;
+    const status = j === 0 ? "DUE" : j === 1 ? "PAYMENT_RECEIVED" : "RECONCILED";
+    const apportionmentStatuses = ["PENDING", "IN_PROGRESS", "COMPLETED"] as const;
+    return {
+      id: `pmt-cycle-${i * 3 + j + 1}`,
+      companyId: company.id,
+      companyName: company.name,
+      statementPeriod: period,
+      dueDate: period === "2026-01" ? "2026-02-25" : period === "2025-12" ? "2026-01-25" : "2025-12-25",
+      totalDue,
+      status,
+      paymentRef: j > 0 ? `NEFT${String(Date.now()).slice(-8)}${i}${j}` : "",
+      paymentDate: j > 0 ? `${period}-23` : null,
+      paymentMode: j > 0 ? (["NEFT", "RTGS", "IMPS"] as const)[i % 3] : null,
+      apportionmentStatus: apportionmentStatuses[j % apportionmentStatuses.length],
+      cardCount: Math.floor(demoCards.length / demoCompanies.length),
+    };
+  })
+);
+
+// ==================== PAYMENT APPORTIONMENTS ====================
+export const demoPaymentApportionments = demoPaymentCycles
+  .filter((pc) => pc.status !== "DUE")
+  .flatMap((cycle, ci) =>
+    demoCards.slice(0, 6).map((card, j) => {
+      const emp = demoEmployees.find((e) => e.id === card.employeeId);
+      const dept = emp ? demoDepartments.find((d) => d.id === emp.departmentId) : null;
+      const cc = emp ? demoCostCenters.find((c) => c.id === emp.costCenterId) : null;
+      return {
+        id: `pmt-appr-${ci * 6 + j + 1}`,
+        paymentCycleId: cycle.id,
+        cardId: card.id,
+        cardLast4: card.last4Digits,
+        employeeId: card.employeeId,
+        employeeName: card.employeeName,
+        departmentName: dept?.name || card.department,
+        costCenterName: cc?.name || "",
+        amount: Math.round((cycle.totalDue / 6) * 100) / 100,
+        status: cycle.apportionmentStatus === "COMPLETED" ? "RECONCILED" : cycle.apportionmentStatus === "IN_PROGRESS" ? "APPORTIONED" : "PENDING",
+      };
+    })
+  );
+
+// ==================== WORKFLOW REQUESTS ====================
+const workflowTypes = ["CARD_REQUEST", "LIMIT_CHANGE", "CARD_CANCELLATION", "CONTROLS_OVERRIDE", "INTERNATIONAL_ENABLE"] as const;
+export const demoWorkflowRequests = [
+  {
+    id: "wf-1",
+    type: "CARD_REQUEST",
+    requestorId: "emp-5",
+    requestorName: "Vikram Singh",
+    department: "Product Development",
+    status: "PENDING",
+    details: { cardType: "PHYSICAL", network: "VISA", justification: "International client visit requiring physical card", requestedLimit: 100000 },
+    currentApprover: "Deepa Nair",
+    approvalChain: [
+      { name: "Deepa Nair", role: "Manager", status: "PENDING", date: null },
+      { name: "Rajesh Kumar", role: "Admin", status: "PENDING", date: null },
+    ],
+    createdAt: "2026-02-18T10:00:00Z",
+    updatedAt: "2026-02-18T10:00:00Z",
+    comments: [{ author: "Vikram Singh", text: "Need physical card for upcoming Singapore trip", date: "2026-02-18T10:00:00Z" }],
+  },
+  {
+    id: "wf-2",
+    type: "LIMIT_CHANGE",
+    requestorId: "emp-6",
+    requestorName: "Ananya Gupta",
+    department: "Credit Analysis",
+    status: "PENDING",
+    details: { cardId: "card-11", currentLimit: 50000, requestedLimit: 150000, reason: "Year-end procurement of analysis tools" },
+    currentApprover: "Priya Sharma",
+    approvalChain: [
+      { name: "Priya Sharma", role: "Manager", status: "PENDING", date: null },
+      { name: "Arun Patel", role: "Finance", status: "PENDING", date: null },
+    ],
+    createdAt: "2026-02-17T14:30:00Z",
+    updatedAt: "2026-02-17T14:30:00Z",
+    comments: [],
+  },
+  {
+    id: "wf-3",
+    type: "CARD_CANCELLATION",
+    requestorId: "emp-7",
+    requestorName: "Suresh Menon",
+    department: "Branch Banking",
+    status: "APPROVED",
+    details: { cardId: "card-14", reason: "Employee transferred to different branch — no longer needed" },
+    currentApprover: "",
+    approvalChain: [
+      { name: "Rajesh Kumar", role: "Admin", status: "APPROVED", date: "2026-02-15T11:00:00Z" },
+    ],
+    createdAt: "2026-02-14T09:00:00Z",
+    updatedAt: "2026-02-15T11:00:00Z",
+    comments: [
+      { author: "Suresh Menon", text: "Transferring to Pune branch, please cancel virtual card", date: "2026-02-14T09:00:00Z" },
+      { author: "Rajesh Kumar", text: "Approved. Card will be cancelled after statement closure.", date: "2026-02-15T11:00:00Z" },
+    ],
+  },
+  {
+    id: "wf-4",
+    type: "CONTROLS_OVERRIDE",
+    requestorId: "emp-4",
+    requestorName: "Deepa Nair",
+    department: "Product Development",
+    status: "PENDING",
+    details: { cardId: "card-7", override: "Enable ATM withdrawal", currentSetting: "ATM disabled", requestedSetting: "ATM enabled up to 20,000/day", duration: "30 days" },
+    currentApprover: "Rajesh Kumar",
+    approvalChain: [
+      { name: "Rajesh Kumar", role: "Admin", status: "PENDING", date: null },
+    ],
+    createdAt: "2026-02-19T16:00:00Z",
+    updatedAt: "2026-02-19T16:00:00Z",
+    comments: [{ author: "Deepa Nair", text: "Team offsite in remote location — need ATM access for 30 days", date: "2026-02-19T16:00:00Z" }],
+  },
+  {
+    id: "wf-5",
+    type: "INTERNATIONAL_ENABLE",
+    requestorId: "emp-9",
+    requestorName: "Rahul Verma",
+    department: "Equity Research",
+    status: "REJECTED",
+    details: { cardId: "card-17", countries: ["USA", "UK"], duration: "14 days", purpose: "International equity research conference" },
+    currentApprover: "",
+    approvalChain: [
+      { name: "Meera Iyer", role: "Manager", status: "APPROVED", date: "2026-02-10T09:00:00Z" },
+      { name: "Arun Patel", role: "Finance", status: "REJECTED", date: "2026-02-11T14:00:00Z" },
+    ],
+    createdAt: "2026-02-09T10:00:00Z",
+    updatedAt: "2026-02-11T14:00:00Z",
+    comments: [
+      { author: "Rahul Verma", text: "Attending annual conference in New York", date: "2026-02-09T10:00:00Z" },
+      { author: "Meera Iyer", text: "Approved from team side", date: "2026-02-10T09:00:00Z" },
+      { author: "Arun Patel", text: "Budget not allocated for international travel this quarter. Please resubmit next quarter.", date: "2026-02-11T14:00:00Z" },
+    ],
+  },
+  {
+    id: "wf-6",
+    type: "CARD_REQUEST",
+    requestorId: "emp-2",
+    requestorName: "Priya Sharma",
+    department: "Sales & Marketing",
+    status: "APPROVED",
+    details: { cardType: "VIRTUAL", network: "MASTERCARD", justification: "Online SaaS subscriptions management", requestedLimit: 200000 },
+    currentApprover: "",
+    approvalChain: [
+      { name: "Rajesh Kumar", role: "Admin", status: "APPROVED", date: "2026-02-12T10:00:00Z" },
+    ],
+    createdAt: "2026-02-11T09:00:00Z",
+    updatedAt: "2026-02-12T10:00:00Z",
+    comments: [{ author: "Rajesh Kumar", text: "Approved. Virtual card issued.", date: "2026-02-12T10:00:00Z" }],
+  },
+  {
+    id: "wf-7",
+    type: "LIMIT_CHANGE",
+    requestorId: "emp-8",
+    requestorName: "Kavitha Reddy",
+    department: "Infrastructure",
+    status: "PENDING",
+    details: { cardId: "card-15", currentLimit: 50000, requestedLimit: 300000, reason: "Server hardware procurement for Q1" },
+    currentApprover: "Deepa Nair",
+    approvalChain: [
+      { name: "Deepa Nair", role: "Manager", status: "PENDING", date: null },
+      { name: "Arun Patel", role: "Finance", status: "PENDING", date: null },
+      { name: "Rajesh Kumar", role: "Admin", status: "PENDING", date: null },
+    ],
+    createdAt: "2026-02-20T08:00:00Z",
+    updatedAt: "2026-02-20T08:00:00Z",
+    comments: [{ author: "Kavitha Reddy", text: "Urgent procurement for new data center setup", date: "2026-02-20T08:00:00Z" }],
+  },
+];
+
+// ==================== DISPUTES ====================
+export const demoDisputes = [
+  {
+    id: "disp-1",
+    transactionId: "txn-5",
+    cardId: demoTransactions[4]?.cardId || "card-1",
+    cardLast4: demoTransactions[4]?.cardLast4 || "1001",
+    employeeId: demoTransactions[4]?.employeeId || "emp-1",
+    employeeName: demoTransactions[4]?.employeeName || "Rajesh Kumar",
+    amount: demoTransactions[4]?.amount || 12500,
+    reason: "Unauthorized transaction",
+    description: "I did not authorize this transaction. Card was in my possession at the time.",
+    status: "INVESTIGATING",
+    provisionalCreditAmount: null,
+    provisionalCreditDate: null,
+    resolution: null,
+    resolvedAt: null,
+    createdAt: "2026-02-15T10:00:00Z",
+  },
+  {
+    id: "disp-2",
+    transactionId: "txn-12",
+    cardId: demoTransactions[11]?.cardId || "card-3",
+    cardLast4: demoTransactions[11]?.cardLast4 || "1003",
+    employeeId: demoTransactions[11]?.employeeId || "emp-2",
+    employeeName: demoTransactions[11]?.employeeName || "Priya Sharma",
+    amount: demoTransactions[11]?.amount || 8750,
+    reason: "Duplicate charge",
+    description: "Merchant charged twice for the same purchase. Have receipt showing single transaction.",
+    status: "PROVISIONAL_CREDIT",
+    provisionalCreditAmount: demoTransactions[11]?.amount || 8750,
+    provisionalCreditDate: "2026-02-17T00:00:00Z",
+    resolution: null,
+    resolvedAt: null,
+    createdAt: "2026-02-14T14:00:00Z",
+  },
+  {
+    id: "disp-3",
+    transactionId: "txn-20",
+    cardId: demoTransactions[19]?.cardId || "card-5",
+    cardLast4: demoTransactions[19]?.cardLast4 || "1005",
+    employeeId: demoTransactions[19]?.employeeId || "emp-3",
+    employeeName: demoTransactions[19]?.employeeName || "Arun Patel",
+    amount: demoTransactions[19]?.amount || 3200,
+    reason: "Wrong amount charged",
+    description: "Hotel charged ₹3,200 but the actual bill was ₹2,400. Difference of ₹800.",
+    status: "RESOLVED",
+    provisionalCreditAmount: 800,
+    provisionalCreditDate: "2026-02-08T00:00:00Z",
+    resolution: "Merchant confirmed overcharge. ₹800 refunded to card.",
+    resolvedAt: "2026-02-12T16:00:00Z",
+    createdAt: "2026-02-05T09:00:00Z",
+  },
+  {
+    id: "disp-4",
+    transactionId: "txn-30",
+    cardId: demoTransactions[29]?.cardId || "card-7",
+    cardLast4: demoTransactions[29]?.cardLast4 || "1007",
+    employeeId: demoTransactions[29]?.employeeId || "emp-4",
+    employeeName: demoTransactions[29]?.employeeName || "Deepa Nair",
+    amount: demoTransactions[29]?.amount || 15000,
+    reason: "Service not received",
+    description: "Paid for software license but never received access credentials. Vendor unresponsive.",
+    status: "RAISED",
+    provisionalCreditAmount: null,
+    provisionalCreditDate: null,
+    resolution: null,
+    resolvedAt: null,
+    createdAt: "2026-02-20T11:00:00Z",
+  },
+  {
+    id: "disp-5",
+    transactionId: "txn-45",
+    cardId: demoTransactions[44]?.cardId || "card-9",
+    cardLast4: demoTransactions[44]?.cardLast4 || "1009",
+    employeeId: demoTransactions[44]?.employeeId || "emp-5",
+    employeeName: demoTransactions[44]?.employeeName || "Vikram Singh",
+    amount: demoTransactions[44]?.amount || 22000,
+    reason: "Fraudulent transaction",
+    description: "Transaction from a merchant I have never visited. Location shows Delhi but I was in Bangalore.",
+    status: "REJECTED",
+    provisionalCreditAmount: null,
+    provisionalCreditDate: null,
+    resolution: "Investigation completed. 3D Secure authentication confirmed. Dispute not valid.",
+    resolvedAt: "2026-02-18T15:00:00Z",
+    createdAt: "2026-02-10T08:00:00Z",
+  },
+];
+
+// ==================== DETECTED SUBSCRIPTIONS ====================
+export const demoDetectedSubscriptions = [
+  { id: "sub-1", cardId: "card-1", cardLast4: "1001", employeeId: "emp-1", employeeName: "Rajesh Kumar", merchantName: "Amazon Prime", mcc: "5968", frequency: "MONTHLY", lastChargeDate: "2026-02-01", lastChargeAmount: 1499, avgAmount: 1499, totalCharges: 12, isActive: true, detectedAt: "2025-03-15T00:00:00Z" },
+  { id: "sub-2", cardId: "card-1", cardLast4: "1001", employeeId: "emp-1", employeeName: "Rajesh Kumar", merchantName: "Microsoft 365", mcc: "5734", frequency: "MONTHLY", lastChargeDate: "2026-02-05", lastChargeAmount: 6199, avgAmount: 6199, totalCharges: 8, isActive: true, detectedAt: "2025-07-10T00:00:00Z" },
+  { id: "sub-3", cardId: "card-3", cardLast4: "1003", employeeId: "emp-2", employeeName: "Priya Sharma", merchantName: "Zoom Pro", mcc: "5734", frequency: "MONTHLY", lastChargeDate: "2026-02-03", lastChargeAmount: 13200, avgAmount: 13200, totalCharges: 10, isActive: true, detectedAt: "2025-05-01T00:00:00Z" },
+  { id: "sub-4", cardId: "card-7", cardLast4: "1007", employeeId: "emp-4", employeeName: "Deepa Nair", merchantName: "GitHub Enterprise", mcc: "5734", frequency: "MONTHLY", lastChargeDate: "2026-02-01", lastChargeAmount: 19000, avgAmount: 19000, totalCharges: 14, isActive: true, detectedAt: "2025-01-20T00:00:00Z" },
+  { id: "sub-5", cardId: "card-7", cardLast4: "1007", employeeId: "emp-4", employeeName: "Deepa Nair", merchantName: "AWS Cloud Services", mcc: "7372", frequency: "MONTHLY", lastChargeDate: "2026-02-01", lastChargeAmount: 45000, avgAmount: 42000, totalCharges: 15, isActive: true, detectedAt: "2025-01-01T00:00:00Z" },
+  { id: "sub-6", cardId: "card-9", cardLast4: "1009", employeeId: "emp-5", employeeName: "Vikram Singh", merchantName: "Slack Business+", mcc: "5734", frequency: "MONTHLY", lastChargeDate: "2026-02-01", lastChargeAmount: 7500, avgAmount: 7500, totalCharges: 6, isActive: true, detectedAt: "2025-09-01T00:00:00Z" },
+  { id: "sub-7", cardId: "card-11", cardLast4: "1011", employeeId: "emp-6", employeeName: "Ananya Gupta", merchantName: "Bloomberg Terminal", mcc: "7372", frequency: "MONTHLY", lastChargeDate: "2026-02-01", lastChargeAmount: 180000, avgAmount: 180000, totalCharges: 24, isActive: true, detectedAt: "2024-03-01T00:00:00Z" },
+  { id: "sub-8", cardId: "card-15", cardLast4: "1015", employeeId: "emp-8", employeeName: "Kavitha Reddy", merchantName: "Jira Software", mcc: "5734", frequency: "ANNUAL", lastChargeDate: "2025-11-15", lastChargeAmount: 46800, avgAmount: 46800, totalCharges: 2, isActive: true, detectedAt: "2024-11-15T00:00:00Z" },
+  { id: "sub-9", cardId: "card-5", cardLast4: "1005", employeeId: "emp-3", employeeName: "Arun Patel", merchantName: "Salesforce CRM", mcc: "7372", frequency: "QUARTERLY", lastChargeDate: "2026-01-15", lastChargeAmount: 125000, avgAmount: 125000, totalCharges: 4, isActive: true, detectedAt: "2025-04-15T00:00:00Z" },
+  { id: "sub-10", cardId: "card-17", cardLast4: "1017", employeeId: "emp-9", employeeName: "Rahul Verma", merchantName: "Reuters Terminal", mcc: "7372", frequency: "MONTHLY", lastChargeDate: "2026-02-01", lastChargeAmount: 95000, avgAmount: 95000, totalCharges: 18, isActive: true, detectedAt: "2024-09-01T00:00:00Z" },
+];
+
+// ==================== SCHEDULED CARD ACTIONS ====================
+export const demoScheduledCardActions = [
+  { id: "sca-1", cardId: "card-9", cardLast4: "1009", employeeId: "emp-5", employeeName: "Vikram Singh", actionType: "FREEZE", scheduledDate: "2026-03-01", recurrence: "ONCE", status: "PENDING", details: { reason: "Employee on leave March 1-15" }, createdAt: "2026-02-20T10:00:00Z" },
+  { id: "sca-2", cardId: "card-9", cardLast4: "1009", employeeId: "emp-5", employeeName: "Vikram Singh", actionType: "UNFREEZE", scheduledDate: "2026-03-16", recurrence: "ONCE", status: "PENDING", details: { reason: "Employee returns from leave" }, createdAt: "2026-02-20T10:01:00Z" },
+  { id: "sca-3", cardId: "card-1", cardLast4: "1001", employeeId: "emp-1", employeeName: "Rajesh Kumar", actionType: "LIMIT_CHANGE", scheduledDate: "2026-03-01", recurrence: "MONTHLY", status: "PENDING", details: { newLimit: { perTransaction: 75000, daily: 150000, monthly: 750000 }, reason: "Monthly limit increase for Q1" }, createdAt: "2026-02-19T08:00:00Z" },
+  { id: "sca-4", cardId: "card-7", cardLast4: "1007", employeeId: "emp-4", employeeName: "Deepa Nair", actionType: "FREEZE", scheduledDate: "2026-02-28", recurrence: "ONCE", status: "PENDING", details: { reason: "Project completion — freeze until next allocation" }, createdAt: "2026-02-18T14:00:00Z" },
+  { id: "sca-5", cardId: "card-13", cardLast4: "1013", employeeId: "emp-7", employeeName: "Suresh Menon", actionType: "FREEZE", scheduledDate: "2026-02-01", recurrence: "ONCE", status: "EXECUTED", details: { reason: "Branch audit period" }, createdAt: "2026-01-25T10:00:00Z" },
+  { id: "sca-6", cardId: "card-13", cardLast4: "1013", employeeId: "emp-7", employeeName: "Suresh Menon", actionType: "UNFREEZE", scheduledDate: "2026-02-10", recurrence: "ONCE", status: "EXECUTED", details: { reason: "Audit completed" }, createdAt: "2026-01-25T10:01:00Z" },
+];
+
 // ==================== DASHBOARD STATS ====================
 export const dashboardStats = {
   totalSpendMTD: 3400000,

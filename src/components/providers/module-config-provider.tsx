@@ -12,6 +12,9 @@ export interface ModuleConfig {
   perDiem: boolean;
   teamsIntegration: boolean;
   apExport: boolean;
+  virtualCardIssuance: boolean;
+  rbiLrs: boolean;
+  gstCompliance: boolean;
 }
 
 const defaultConfig: ModuleConfig = {
@@ -23,6 +26,9 @@ const defaultConfig: ModuleConfig = {
   perDiem: false,
   teamsIntegration: true,
   apExport: true,
+  virtualCardIssuance: true,
+  rbiLrs: false,
+  gstCompliance: false,
 };
 
 interface ModuleConfigContextValue {
