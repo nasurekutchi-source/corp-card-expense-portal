@@ -3,15 +3,34 @@
 
 import { generateId } from "./utils";
 
-// ==================== HIERARCHY ====================
-export const demoEnterprises = [
-  { id: "ent-1", name: "Bharat Financial Services", status: "ACTIVE" },
+// ==================== HIERARCHY (Visa/Mastercard 6-Level Structure) ====================
+// Level 1: Bank/Institution (read-only, pre-set)
+// Level 2: Program
+// Level 3: Company
+// Level 4: Division
+// Level 5: Department
+// Level 6: Cost Center
+
+export const demoBankInstitutions = [
+  { id: "bank-1", name: "IDFC FIRST Bank", code: "IDFC", status: "ACTIVE" },
 ];
 
+export const demoPrograms = [
+  { id: "prog-1", name: "Corporate Card Program", code: "CCP", bankId: "bank-1", status: "ACTIVE", description: "Standard corporate card program for all group companies" },
+  { id: "prog-2", name: "Procurement Card Program", code: "PCP", bankId: "bank-1", status: "ACTIVE", description: "P-Card program for vendor and procurement payments" },
+];
+
+// Keep old export names for backward compatibility
+export const demoEnterprises = demoBankInstitutions.map((b) => ({
+  id: b.id,
+  name: b.name,
+  status: b.status,
+}));
+
 export const demoCompanies = [
-  { id: "comp-1", name: "BFS India Ltd", legalName: "Bharat Financial Services India Private Limited", gstin: "27AABCU9603R1ZM", pan: "AABCU9603R", cin: "U65100MH2020PTC123456", baseCurrency: "INR", enterpriseId: "ent-1" },
-  { id: "comp-2", name: "BFS Digital", legalName: "BFS Digital Solutions Private Limited", gstin: "29AADCB2230Q2ZG", pan: "AADCB2230Q", cin: "U72200KA2021PTC234567", baseCurrency: "INR", enterpriseId: "ent-1" },
-  { id: "comp-3", name: "BFS Capital", legalName: "BFS Capital Markets Limited", gstin: "07AACCF8274K1Z8", pan: "AACCF8274K", cin: "U65900DL2019PLC345678", baseCurrency: "INR", enterpriseId: "ent-1" },
+  { id: "comp-1", name: "BFS India Ltd", legalName: "Bharat Financial Services India Private Limited", gstin: "27AABCU9603R1ZM", pan: "AABCU9603R", cin: "U65100MH2020PTC123456", baseCurrency: "INR", enterpriseId: "bank-1", programId: "prog-1" },
+  { id: "comp-2", name: "BFS Digital", legalName: "BFS Digital Solutions Private Limited", gstin: "29AADCB2230Q2ZG", pan: "AADCB2230Q", cin: "U72200KA2021PTC234567", baseCurrency: "INR", enterpriseId: "bank-1", programId: "prog-1" },
+  { id: "comp-3", name: "BFS Capital", legalName: "BFS Capital Markets Limited", gstin: "07AACCF8274K1Z8", pan: "AACCF8274K", cin: "U65900DL2019PLC345678", baseCurrency: "INR", enterpriseId: "bank-1", programId: "prog-2" },
 ];
 
 export const demoDivisions = [
@@ -33,12 +52,129 @@ export const demoDepartments = [
 ];
 
 export const demoCostCenters = [
-  { id: "cc-1", code: "CC-SM-01", name: "Marketing Campaigns", glCode: "4100-001", budget: 5000000, utilized: 2800000, companyId: "comp-1" },
-  { id: "cc-2", code: "CC-SM-02", name: "Client Engagement", glCode: "4100-002", budget: 4000000, utilized: 1500000, companyId: "comp-1" },
-  { id: "cc-3", code: "CC-OPS-01", name: "Operations Center", glCode: "4200-001", budget: 6000000, utilized: 3200000, companyId: "comp-1" },
-  { id: "cc-4", code: "CC-PD-01", name: "App Development", glCode: "5100-001", budget: 8000000, utilized: 5500000, companyId: "comp-2" },
-  { id: "cc-5", code: "CC-PD-02", name: "AI/ML Research", glCode: "5100-002", budget: 7000000, utilized: 4100000, companyId: "comp-2" },
-  { id: "cc-6", code: "CC-ER-01", name: "Research Analysis", glCode: "6100-001", budget: 10000000, utilized: 7200000, companyId: "comp-3" },
+  { id: "cc-1", code: "CC-SM-01", name: "Marketing Campaigns", glCode: "4100-001", budget: 5000000, utilized: 2800000, departmentId: "dept-1", companyId: "comp-1" },
+  { id: "cc-2", code: "CC-SM-02", name: "Client Engagement", glCode: "4100-002", budget: 4000000, utilized: 1500000, departmentId: "dept-1", companyId: "comp-1" },
+  { id: "cc-3", code: "CC-OPS-01", name: "Operations Center", glCode: "4200-001", budget: 6000000, utilized: 3200000, departmentId: "dept-2", companyId: "comp-1" },
+  { id: "cc-4", code: "CC-PD-01", name: "App Development", glCode: "5100-001", budget: 8000000, utilized: 5500000, departmentId: "dept-5", companyId: "comp-2" },
+  { id: "cc-5", code: "CC-PD-02", name: "AI/ML Research", glCode: "5100-002", budget: 7000000, utilized: 4100000, departmentId: "dept-5", companyId: "comp-2" },
+  { id: "cc-6", code: "CC-ER-01", name: "Research Analysis", glCode: "6100-001", budget: 10000000, utilized: 7200000, departmentId: "dept-7", companyId: "comp-3" },
+];
+
+// ==================== CARD CONTROL POLICIES ====================
+// Policies cascade down the hierarchy: Company -> Division -> Department
+// Each level can inherit from parent or override
+
+export interface DemoCardControlPolicy {
+  id: string;
+  nodeId: string;       // hierarchy node this policy applies to
+  nodeType: "company" | "division" | "department";
+  nodeName: string;
+  spendLimits: {
+    perTransaction: number;
+    daily: number;
+    monthly: number;
+  };
+  channelControls: {
+    pos: boolean;
+    ecommerce: boolean;
+    contactless: boolean;
+    mobileWallet: boolean;
+    atm: boolean;
+  };
+  geographicControls: {
+    internationalAllowed: boolean;
+    domesticOnly: boolean;
+  };
+  mccRestrictions: string[];  // blocked MCC categories
+  isOverride: boolean;        // whether this overrides parent defaults
+  inheritedFrom?: string;     // parent node ID if inherited
+}
+
+export const demoCardControlPolicies: DemoCardControlPolicy[] = [
+  // Company-level defaults (Level 3)
+  {
+    id: "ccp-1",
+    nodeId: "comp-1",
+    nodeType: "company",
+    nodeName: "BFS India Ltd",
+    spendLimits: { perTransaction: 50000, daily: 100000, monthly: 500000 },
+    channelControls: { pos: true, ecommerce: true, contactless: true, mobileWallet: true, atm: false },
+    geographicControls: { internationalAllowed: false, domesticOnly: true },
+    mccRestrictions: ["Gambling", "Crypto", "Liquor", "ATM Cash Advance"],
+    isOverride: false,
+  },
+  {
+    id: "ccp-2",
+    nodeId: "comp-2",
+    nodeType: "company",
+    nodeName: "BFS Digital",
+    spendLimits: { perTransaction: 75000, daily: 150000, monthly: 750000 },
+    channelControls: { pos: true, ecommerce: true, contactless: true, mobileWallet: true, atm: false },
+    geographicControls: { internationalAllowed: true, domesticOnly: false },
+    mccRestrictions: ["Gambling", "Crypto"],
+    isOverride: false,
+  },
+  {
+    id: "ccp-3",
+    nodeId: "comp-3",
+    nodeType: "company",
+    nodeName: "BFS Capital",
+    spendLimits: { perTransaction: 100000, daily: 200000, monthly: 1000000 },
+    channelControls: { pos: true, ecommerce: true, contactless: true, mobileWallet: true, atm: true },
+    geographicControls: { internationalAllowed: true, domesticOnly: false },
+    mccRestrictions: ["Gambling", "Crypto", "Liquor"],
+    isOverride: false,
+  },
+  // Division-level overrides (Level 4)
+  {
+    id: "ccp-4",
+    nodeId: "div-1",
+    nodeType: "division",
+    nodeName: "Corporate Banking",
+    spendLimits: { perTransaction: 75000, daily: 150000, monthly: 750000 },
+    channelControls: { pos: true, ecommerce: true, contactless: true, mobileWallet: true, atm: false },
+    geographicControls: { internationalAllowed: true, domesticOnly: false },
+    mccRestrictions: ["Gambling", "Crypto", "Liquor", "ATM Cash Advance"],
+    isOverride: true,
+    inheritedFrom: "comp-1",
+  },
+  {
+    id: "ccp-5",
+    nodeId: "div-3",
+    nodeType: "division",
+    nodeName: "Technology",
+    spendLimits: { perTransaction: 100000, daily: 200000, monthly: 1000000 },
+    channelControls: { pos: true, ecommerce: true, contactless: true, mobileWallet: true, atm: false },
+    geographicControls: { internationalAllowed: true, domesticOnly: false },
+    mccRestrictions: ["Gambling", "Crypto"],
+    isOverride: true,
+    inheritedFrom: "comp-2",
+  },
+  // Department-level overrides (Level 5)
+  {
+    id: "ccp-6",
+    nodeId: "dept-1",
+    nodeType: "department",
+    nodeName: "Sales & Marketing",
+    spendLimits: { perTransaction: 100000, daily: 200000, monthly: 1000000 },
+    channelControls: { pos: true, ecommerce: true, contactless: true, mobileWallet: true, atm: false },
+    geographicControls: { internationalAllowed: true, domesticOnly: false },
+    mccRestrictions: ["Gambling", "Crypto", "ATM Cash Advance"],
+    isOverride: true,
+    inheritedFrom: "div-1",
+  },
+  {
+    id: "ccp-7",
+    nodeId: "dept-5",
+    nodeType: "department",
+    nodeName: "Product Development",
+    spendLimits: { perTransaction: 150000, daily: 300000, monthly: 1500000 },
+    channelControls: { pos: true, ecommerce: true, contactless: true, mobileWallet: true, atm: false },
+    geographicControls: { internationalAllowed: true, domesticOnly: false },
+    mccRestrictions: ["Gambling", "Crypto"],
+    isOverride: true,
+    inheritedFrom: "div-3",
+  },
 ];
 
 // ==================== EMPLOYEES ====================

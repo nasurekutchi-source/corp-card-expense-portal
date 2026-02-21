@@ -77,7 +77,6 @@ export default function EmployeesPage() {
           email: record["email"] || "",
           phone: record["phone"] || "",
           employeeNumber: record["employeenumber"] || record["employee_number"] || record["employee number"] || "",
-          pan: record["pan"] || "",
           departmentId: record["departmentid"] || record["department_id"] || record["department id"] || "",
           costCenterId: record["costcenterid"] || record["cost_center_id"] || record["cost center id"] || "",
           level: record["level"] || "STAFF",
@@ -187,11 +186,6 @@ export default function EmployeesPage() {
                     <Badge variant="secondary" className="text-[9px]">
                       {emp.level.replace("_", " ")}
                     </Badge>
-                    {emp.pan && (
-                      <Badge variant="outline" className="text-[9px]">
-                        PAN: {emp.pan.slice(0, 4)}***
-                      </Badge>
-                    )}
                   </div>
                 </div>
               </div>

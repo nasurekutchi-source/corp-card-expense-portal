@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
-import { getCards } from "@/lib/store";
+import { getCards, getEmployees } from "@/lib/store";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -107,6 +107,8 @@ function CardVisual({ card }: { card: CardData }) {
 
 export default function CardsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const employeeIdFilter = searchParams.get("employeeId");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
@@ -126,7 +128,17 @@ export default function CardsPage() {
   const [cancelCard, setCancelCard] = useState<CardData | null>(null);
   const [cancellingCard, setCancellingCard] = useState(false);
 
-  const cards = getCards();
+  const allCards = getCards();
+  const allEmployees = getEmployees();
+
+  // Filter by employee if query param present
+  const cards = employeeIdFilter
+    ? allCards.filter((c) => c.employeeId === employeeIdFilter)
+    : allCards;
+
+  const filterEmployee = employeeIdFilter
+    ? allEmployees.find((e) => e.id === employeeIdFilter)
+    : null;
 
   const filteredCards = cards.filter((card) => {
     const matchesSearch =
@@ -244,7 +256,15 @@ export default function CardsPage() {
 
   return (
     <div className="space-y-6 animate-in">
-      <PageHeader title="Card Management" description="Manage corporate cards across your organization">
+      <PageHeader
+        title={filterEmployee ? `Cards — ${filterEmployee.firstName} ${filterEmployee.lastName}` : "Card Management"}
+        description={filterEmployee ? `Showing cards assigned to ${filterEmployee.firstName} ${filterEmployee.lastName}` : "Manage corporate cards across your organization"}
+      >
+        {filterEmployee && (
+          <Button variant="outline" asChild>
+            <Link href="/cards">Show All Cards</Link>
+          </Button>
+        )}
         <Button asChild>
           <Link href="/cards/new">
             <Plus className="w-4 h-4" />

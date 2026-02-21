@@ -1,25 +1,31 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
-import { getCards, getTransactions } from "@/lib/store";
-import { formatINR, formatINRCompact, formatDate } from "@/lib/utils";
 import {
-  CreditCard,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { getCards, getTransactions } from "@/lib/store";
+import { formatDate } from "@/lib/utils";
+import { toast } from "sonner";
+import {
   ArrowLeft,
   Snowflake,
   PlayCircle,
-  Settings,
   ArrowRightLeft,
-  Shield,
   Wifi,
   Copy,
   MapPin,
@@ -28,8 +34,17 @@ import {
   Smartphone,
   Monitor,
   Edit2,
-  Trash2,
+  Check,
+  X,
+  Save,
+  Plus,
+  Loader2,
+  Banknote,
 } from "lucide-react";
+
+// =============================================================================
+// Card Visual Component (unchanged)
+// =============================================================================
 
 function CardVisual3D({ card }: { card: ReturnType<typeof getCards>[0] }) {
   const gradients: Record<string, string> = {
@@ -54,7 +69,7 @@ function CardVisual3D({ card }: { card: ReturnType<typeof getCards>[0] }) {
         <div>
           <div className="w-10 h-7 rounded bg-gradient-to-br from-yellow-300 to-yellow-500 mb-4" />
           <p className="text-xl tracking-[0.25em] font-mono">
-            •••• •••• •••• {card.last4Digits}
+            &bull;&bull;&bull;&bull; &bull;&bull;&bull;&bull; &bull;&bull;&bull;&bull; {card.last4Digits}
           </p>
         </div>
         <div className="flex items-end justify-between">
@@ -73,18 +88,320 @@ function CardVisual3D({ card }: { card: ReturnType<typeof getCards>[0] }) {
   );
 }
 
+// =============================================================================
+// MCC Categories available for blocking
+// =============================================================================
+
+const AVAILABLE_MCC_CATEGORIES = [
+  "Gambling",
+  "Crypto",
+  "Liquor Stores",
+  "ATM Cash Advance",
+  "Tobacco Shops",
+  "Dating Services",
+  "Pawn Shops",
+  "Wire Transfers",
+  "Money Orders",
+  "Firearms",
+  "Adult Entertainment",
+  "Lottery",
+];
+
+// =============================================================================
+// Controls type (local state shape)
+// =============================================================================
+
+interface ControlsState {
+  channels: {
+    pos: boolean;
+    ecommerce: boolean;
+    contactless: boolean;
+    mobileWallet: boolean;
+    atm: boolean;
+  };
+  geographic: {
+    international: boolean;
+    domesticOnly: boolean;
+  };
+  mccRestrictions: string[];
+}
+
+const DEFAULT_CONTROLS: ControlsState = {
+  channels: {
+    pos: true,
+    ecommerce: true,
+    contactless: true,
+    mobileWallet: false,
+    atm: true,
+  },
+  geographic: {
+    international: false,
+    domesticOnly: true,
+  },
+  mccRestrictions: ["Gambling", "Crypto", "Liquor Stores", "ATM Cash Advance"],
+};
+
+// =============================================================================
+// Main Page Component
+// =============================================================================
+
 export default function CardDetailPage({ params }: { params: Promise<{ cardId: string }> }) {
   const { cardId } = use(params);
   const cards = getCards();
   const allTransactions = getTransactions();
   const card = cards.find((c) => c.id === cardId) || cards[0];
   const transactions = allTransactions.filter((t) => t.cardId === card.id).slice(0, 15);
-  const isFrozen = card.status === "FROZEN";
 
+  // ---------------------------------------------------------------------------
+  // Card status state (for freeze/unfreeze)
+  // ---------------------------------------------------------------------------
+  const [cardStatus, setCardStatus] = useState(card.status);
+  const [freezeLoading, setFreezeLoading] = useState(false);
+  const isFrozen = cardStatus === "FROZEN";
+
+  // ---------------------------------------------------------------------------
+  // Spend Limits inline editing state
+  // ---------------------------------------------------------------------------
+  const [limits, setLimits] = useState({
+    perTransaction: card.spendLimits.perTransaction,
+    daily: card.spendLimits.daily,
+    monthly: card.spendLimits.monthly,
+  });
+  const [editingLimit, setEditingLimit] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [limitSaving, setLimitSaving] = useState(false);
+
+  // ---------------------------------------------------------------------------
+  // Card Controls state
+  // ---------------------------------------------------------------------------
+  const [controls, setControls] = useState<ControlsState>(DEFAULT_CONTROLS);
+  const [controlsDirty, setControlsDirty] = useState(false);
+  const [controlsSaving, setControlsSaving] = useState(false);
+
+  // Load controls from API on mount
+  useEffect(() => {
+    async function loadControls() {
+      try {
+        const res = await fetch(`/api/v1/cards/${card.id}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data?.controls) {
+            setControls(json.data.controls);
+          }
+        }
+      } catch {
+        // Silently fall back to defaults
+      }
+    }
+    loadControls();
+  }, [card.id]);
+
+  // ---------------------------------------------------------------------------
+  // Freeze / Unfreeze handler
+  // ---------------------------------------------------------------------------
+  const handleFreezeToggle = useCallback(async () => {
+    setFreezeLoading(true);
+    try {
+      const action = isFrozen ? "unfreeze" : "freeze";
+      const res = await fetch(`/api/v1/cards/${card.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+
+      const json = await res.json();
+      if (res.ok && json.data) {
+        setCardStatus(json.data.status);
+        toast.success(
+          isFrozen ? "Card unfrozen successfully" : "Card frozen successfully"
+        );
+      } else {
+        toast.error(json.error || `Failed to ${action} card`);
+      }
+    } catch {
+      toast.error("Network error. Please try again.");
+    } finally {
+      setFreezeLoading(false);
+    }
+  }, [card.id, isFrozen]);
+
+  // ---------------------------------------------------------------------------
+  // Spend Limit editing handlers
+  // ---------------------------------------------------------------------------
+  const startEditingLimit = (key: string, currentValue: number) => {
+    setEditingLimit(key);
+    setEditValue(String(currentValue));
+  };
+
+  const cancelEditingLimit = () => {
+    setEditingLimit(null);
+    setEditValue("");
+  };
+
+  const saveLimitEdit = useCallback(
+    async (key: string) => {
+      const newValue = parseInt(editValue, 10);
+      if (isNaN(newValue) || newValue < 0) {
+        toast.error("Please enter a valid positive number");
+        return;
+      }
+
+      const newLimits = { ...limits, [key]: newValue };
+
+      // Client-side validation
+      if (newLimits.perTransaction > newLimits.daily) {
+        toast.error("Per-transaction limit cannot exceed daily limit");
+        return;
+      }
+      if (newLimits.daily > newLimits.monthly) {
+        toast.error("Daily limit cannot exceed monthly limit");
+        return;
+      }
+
+      setLimitSaving(true);
+      try {
+        const res = await fetch(`/api/v1/cards/${card.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ spendLimits: newLimits }),
+        });
+
+        const json = await res.json();
+        if (res.ok && json.data) {
+          setLimits(json.data.spendLimits);
+          setEditingLimit(null);
+          setEditValue("");
+          toast.success("Spend limit updated successfully");
+        } else {
+          toast.error(json.error || "Failed to update spend limit");
+        }
+      } catch {
+        toast.error("Network error. Please try again.");
+      } finally {
+        setLimitSaving(false);
+      }
+    },
+    [card.id, editValue, limits]
+  );
+
+  // ---------------------------------------------------------------------------
+  // Card Controls handlers
+  // ---------------------------------------------------------------------------
+  const updateChannelControl = (key: keyof ControlsState["channels"], value: boolean) => {
+    setControls((prev) => ({
+      ...prev,
+      channels: { ...prev.channels, [key]: value },
+    }));
+    setControlsDirty(true);
+  };
+
+  const updateGeoControl = (key: keyof ControlsState["geographic"], value: boolean) => {
+    setControls((prev) => ({
+      ...prev,
+      geographic: { ...prev.geographic, [key]: value },
+    }));
+    setControlsDirty(true);
+  };
+
+  const removeMccRestriction = (mcc: string) => {
+    setControls((prev) => ({
+      ...prev,
+      mccRestrictions: prev.mccRestrictions.filter((m) => m !== mcc),
+    }));
+    setControlsDirty(true);
+  };
+
+  const addMccRestriction = (mcc: string) => {
+    if (controls.mccRestrictions.includes(mcc)) return;
+    setControls((prev) => ({
+      ...prev,
+      mccRestrictions: [...prev.mccRestrictions, mcc],
+    }));
+    setControlsDirty(true);
+  };
+
+  const saveControls = useCallback(async () => {
+    setControlsSaving(true);
+    try {
+      const res = await fetch(`/api/v1/cards/${card.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ controls }),
+      });
+
+      const json = await res.json();
+      if (res.ok) {
+        setControlsDirty(false);
+        toast.success("Card controls updated successfully");
+      } else {
+        toast.error(json.error || "Failed to update card controls");
+      }
+    } catch {
+      toast.error("Network error. Please try again.");
+    } finally {
+      setControlsSaving(false);
+    }
+  }, [card.id, controls]);
+
+  // ---------------------------------------------------------------------------
+  // Helper: check if a control matches the "company default"
+  // (cosmetic hint; defaults are the initial values)
+  // ---------------------------------------------------------------------------
+  const isChannelDefault = (key: keyof ControlsState["channels"]) =>
+    controls.channels[key] === DEFAULT_CONTROLS.channels[key];
+  const isGeoDefault = (key: keyof ControlsState["geographic"]) =>
+    controls.geographic[key] === DEFAULT_CONTROLS.geographic[key];
+
+  // ---------------------------------------------------------------------------
+  // Available MCC categories that are not already restricted
+  // ---------------------------------------------------------------------------
+  const availableMccToAdd = AVAILABLE_MCC_CATEGORIES.filter(
+    (mcc) => !controls.mccRestrictions.includes(mcc)
+  );
+
+  // ---------------------------------------------------------------------------
+  // Limit items config
+  // ---------------------------------------------------------------------------
+  const limitItems = [
+    { key: "perTransaction", label: "Per Transaction", value: limits.perTransaction },
+    { key: "daily", label: "Daily Limit", value: limits.daily },
+    { key: "monthly", label: "Monthly Limit", value: limits.monthly },
+  ];
+
+  // ---------------------------------------------------------------------------
+  // Channel controls config
+  // ---------------------------------------------------------------------------
+  const channelItems: {
+    key: keyof ControlsState["channels"];
+    label: string;
+    icon: typeof ShoppingCart;
+  }[] = [
+    { key: "pos", label: "POS (Point of Sale)", icon: ShoppingCart },
+    { key: "ecommerce", label: "E-Commerce", icon: Monitor },
+    { key: "contactless", label: "Contactless (NFC)", icon: Wifi },
+    { key: "mobileWallet", label: "Mobile Wallet", icon: Smartphone },
+    { key: "atm", label: "ATM Withdrawal", icon: Banknote },
+  ];
+
+  // ---------------------------------------------------------------------------
+  // Geographic controls config
+  // ---------------------------------------------------------------------------
+  const geoItems: {
+    key: keyof ControlsState["geographic"];
+    label: string;
+    icon: typeof Globe;
+  }[] = [
+    { key: "international", label: "International Transactions", icon: Globe },
+    { key: "domesticOnly", label: "Domestic Only", icon: MapPin },
+  ];
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
   return (
     <div className="space-y-6 animate-in">
       <PageHeader
-        title={`Card •${card.last4Digits}`}
+        title={`Card \u2022${card.last4Digits}`}
         description={`${card.type} ${card.network} card assigned to ${card.employeeName}`}
       >
         <Button variant="outline" asChild>
@@ -93,16 +410,32 @@ export default function CardDetailPage({ params }: { params: Promise<{ cardId: s
             Back
           </Link>
         </Button>
-        <Button variant={isFrozen ? "default" : "destructive"}>
-          {isFrozen ? <PlayCircle className="w-4 h-4" /> : <Snowflake className="w-4 h-4" />}
-          {isFrozen ? "Unfreeze" : "Freeze Card"}
+        <Button
+          variant={isFrozen ? "default" : "destructive"}
+          onClick={handleFreezeToggle}
+          disabled={freezeLoading}
+        >
+          {freezeLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : isFrozen ? (
+            <PlayCircle className="w-4 h-4" />
+          ) : (
+            <Snowflake className="w-4 h-4" />
+          )}
+          {freezeLoading
+            ? isFrozen
+              ? "Unfreezing..."
+              : "Freezing..."
+            : isFrozen
+              ? "Unfreeze"
+              : "Freeze Card"}
         </Button>
       </PageHeader>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Card Visual */}
         <div className="flex flex-col items-center gap-4">
-          <CardVisual3D card={card} />
+          <CardVisual3D card={{ ...card, status: cardStatus }} />
           {card.type === "VIRTUAL" && (
             <div className="flex gap-2 w-full max-w-sm">
               <Button variant="outline" size="sm" className="flex-1">
@@ -123,13 +456,13 @@ export default function CardDetailPage({ params }: { params: Promise<{ cardId: s
             <Card>
               <CardContent className="p-3 text-center">
                 <p className="text-xs text-muted-foreground">Status</p>
-                <StatusBadge status={card.status} />
+                <StatusBadge status={cardStatus} />
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-3 text-center">
                 <p className="text-xs text-muted-foreground">Monthly Limit</p>
-                <CurrencyDisplay amount={card.spendLimits.monthly} compact className="text-lg font-bold" />
+                <CurrencyDisplay amount={limits.monthly} compact className="text-lg font-bold" />
               </CardContent>
             </Card>
             <Card>
@@ -154,22 +487,69 @@ export default function CardDetailPage({ params }: { params: Promise<{ cardId: s
               <TabsTrigger value="transactions">Transactions</TabsTrigger>
             </TabsList>
 
-            {/* Limits */}
+            {/* ============================================================= */}
+            {/* Spend Limits Tab - Inline Editing                             */}
+            {/* ============================================================= */}
             <TabsContent value="limits">
               <Card>
                 <CardContent className="p-4 space-y-4">
-                  {[
-                    { label: "Per Transaction", value: card.spendLimits.perTransaction },
-                    { label: "Daily Limit", value: card.spendLimits.daily },
-                    { label: "Monthly Limit", value: card.spendLimits.monthly },
-                  ].map((limit) => (
-                    <div key={limit.label} className="flex items-center justify-between">
+                  {limitItems.map((limit) => (
+                    <div key={limit.key} className="flex items-center justify-between">
                       <span className="text-sm">{limit.label}</span>
                       <div className="flex items-center gap-2">
-                        <CurrencyDisplay amount={limit.value} className="text-sm font-medium" />
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                          <Edit2 className="w-3 h-3" />
-                        </Button>
+                        {editingLimit === limit.key ? (
+                          <>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-muted-foreground">&#8377;</span>
+                              <Input
+                                type="number"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                className="w-32 h-8 text-sm"
+                                min={0}
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveLimitEdit(limit.key);
+                                  if (e.key === "Escape") cancelEditingLimit();
+                                }}
+                              />
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                              onClick={() => saveLimitEdit(limit.key)}
+                              disabled={limitSaving}
+                            >
+                              {limitSaving ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Check className="w-3 h-3" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
+                              onClick={cancelEditingLimit}
+                              disabled={limitSaving}
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <CurrencyDisplay amount={limit.value} className="text-sm font-medium" />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => startEditingLimit(limit.key, limit.value)}
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -177,59 +557,128 @@ export default function CardDetailPage({ params }: { params: Promise<{ cardId: s
               </Card>
             </TabsContent>
 
-            {/* Controls */}
+            {/* ============================================================= */}
+            {/* Card Controls Tab - Toggle Switches + MCC Editing             */}
+            {/* ============================================================= */}
             <TabsContent value="controls">
               <Card>
                 <CardContent className="p-4 space-y-4">
+                  {/* Channel Controls */}
                   <div className="space-y-3">
-                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Channel Controls</h4>
-                    {[
-                      { label: "POS (Point of Sale)", icon: ShoppingCart, enabled: true },
-                      { label: "E-Commerce", icon: Monitor, enabled: true },
-                      { label: "Contactless (NFC)", icon: Wifi, enabled: true },
-                      { label: "Mobile Wallet", icon: Smartphone, enabled: false },
-                    ].map((ch) => (
-                      <div key={ch.label} className="flex items-center justify-between py-1">
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Channel Controls
+                    </h4>
+                    {channelItems.map((ch) => (
+                      <div key={ch.key} className="flex items-center justify-between py-1">
                         <div className="flex items-center gap-2">
                           <ch.icon className="w-4 h-4 text-muted-foreground" />
                           <span className="text-sm">{ch.label}</span>
+                          {isChannelDefault(ch.key) && (
+                            <span className="text-[9px] text-muted-foreground italic">
+                              Inherited from Company
+                            </span>
+                          )}
                         </div>
-                        <Badge variant={ch.enabled ? "success" : "outline"} className="text-[9px]">
-                          {ch.enabled ? "Enabled" : "Disabled"}
-                        </Badge>
+                        <Switch
+                          checked={controls.channels[ch.key]}
+                          onCheckedChange={(checked) => updateChannelControl(ch.key, checked)}
+                        />
                       </div>
                     ))}
                   </div>
+
+                  {/* Geographic Controls */}
                   <div className="space-y-3 pt-3 border-t">
-                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Geographic Controls</h4>
-                    <div className="flex items-center justify-between py-1">
-                      <div className="flex items-center gap-2">
-                        <Globe className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm">International Transactions</span>
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Geographic Controls
+                    </h4>
+                    {geoItems.map((geo) => (
+                      <div key={geo.key} className="flex items-center justify-between py-1">
+                        <div className="flex items-center gap-2">
+                          <geo.icon className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm">{geo.label}</span>
+                          {isGeoDefault(geo.key) && (
+                            <span className="text-[9px] text-muted-foreground italic">
+                              Inherited from Department
+                            </span>
+                          )}
+                        </div>
+                        <Switch
+                          checked={controls.geographic[geo.key]}
+                          onCheckedChange={(checked) => updateGeoControl(geo.key, checked)}
+                        />
                       </div>
-                      <Badge variant="outline" className="text-[9px]">Disabled</Badge>
-                    </div>
-                    <div className="flex items-center justify-between py-1">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm">Domestic Only</span>
-                      </div>
-                      <Badge variant="success" className="text-[9px]">Enabled</Badge>
-                    </div>
+                    ))}
                   </div>
+
+                  {/* MCC Restrictions */}
                   <div className="space-y-3 pt-3 border-t">
-                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">MCC Restrictions</h4>
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      MCC Restrictions
+                    </h4>
                     <div className="flex gap-1.5 flex-wrap">
-                      {["Gambling", "Crypto", "Liquor Stores", "ATM Cash Advance"].map((mcc) => (
-                        <Badge key={mcc} variant="destructive" className="text-[9px]">{mcc} ✕</Badge>
+                      {controls.mccRestrictions.map((mcc) => (
+                        <Badge
+                          key={mcc}
+                          variant="destructive"
+                          className="text-[9px] cursor-pointer hover:bg-destructive/80 gap-1"
+                          onClick={() => removeMccRestriction(mcc)}
+                        >
+                          {mcc}
+                          <X className="w-2.5 h-2.5" />
+                        </Badge>
                       ))}
+                      {availableMccToAdd.length > 0 && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-6 text-[9px] px-2 gap-1">
+                              <Plus className="w-2.5 h-2.5" />
+                              Add
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="max-h-48 overflow-y-auto">
+                            {availableMccToAdd.map((mcc) => (
+                              <DropdownMenuItem
+                                key={mcc}
+                                onClick={() => addMccRestriction(mcc)}
+                                className="text-xs cursor-pointer"
+                              >
+                                {mcc}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
+                    {controls.mccRestrictions.length === 0 && (
+                      <p className="text-xs text-muted-foreground italic">
+                        No MCC categories blocked. All merchant types are allowed.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Save Controls Button */}
+                  <div className="pt-3 border-t flex justify-end">
+                    <Button
+                      onClick={saveControls}
+                      disabled={!controlsDirty || controlsSaving}
+                      size="sm"
+                    >
+                      {controlsSaving ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                      ) : (
+                        <Save className="w-4 h-4 mr-1" />
+                      )}
+                      {controlsSaving ? "Saving..." : "Save Controls"}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
 
-            {/* Transactions */}
+            {/* ============================================================= */}
+            {/* Transactions Tab (read-only, unchanged)                       */}
+            {/* ============================================================= */}
             <TabsContent value="transactions">
               <Card>
                 <CardContent className="p-4">
@@ -251,6 +700,11 @@ export default function CardDetailPage({ params }: { params: Promise<{ cardId: s
                         </div>
                       </div>
                     ))}
+                    {transactions.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-6">
+                        No transactions found for this card.
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>

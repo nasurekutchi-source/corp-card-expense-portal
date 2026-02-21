@@ -234,12 +234,11 @@ export default function NewEmployeePage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">PAN</label>
+                  <label className="text-xs font-medium">Designation</label>
                   <Input
-                    placeholder="ABCDE1234F"
-                    value={form.pan}
-                    onChange={(e) => updateField("pan", e.target.value.toUpperCase())}
-                    maxLength={10}
+                    placeholder="e.g. Software Engineer"
+                    value={form.designation}
+                    onChange={(e) => updateField("designation", e.target.value)}
                   />
                 </div>
               </div>
@@ -418,7 +417,7 @@ export default function NewEmployeePage() {
                   { label: "Employee Number", value: form.employeeNumber || "Auto-generated" },
                   { label: "Email", value: form.email || "—" },
                   { label: "Phone", value: form.phone || "—" },
-                  { label: "PAN", value: form.pan || "—" },
+                  { label: "Designation", value: form.designation || "—" },
                   { label: "Department", value: selectedDept?.name || "—" },
                   { label: "Level", value: form.level.replace("_", " ") },
                   { label: "Reporting Manager", value: selectedManager ? `${selectedManager.firstName} ${selectedManager.lastName}` : "—" },

@@ -16,7 +16,14 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { getEnterprises, getCompanies, getDivisions, getDepartments, getCostCenters } from "@/lib/store";
+import {
+  getBankInstitutions,
+  getPrograms,
+  getCompanies,
+  getDivisions,
+  getDepartments,
+  getCostCenters,
+} from "@/lib/store";
 import { formatINRCompact } from "@/lib/utils";
 import {
   Network,
@@ -25,68 +32,122 @@ import {
   ChevronRight,
   ChevronDown,
   Building2,
+  Landmark,
+  CreditCard,
   Layers,
   Users,
-  FolderTree,
   IndianRupee,
   Edit2,
   Loader2,
+  FolderTree,
+  Info,
 } from "lucide-react";
 
 // =============================================================================
 // Types
 // =============================================================================
 
+type NodeType = "bank" | "program" | "company" | "division" | "department" | "costcenter";
+
 interface TreeNode {
   id: string;
   name: string;
   code?: string;
-  type: "enterprise" | "company" | "division" | "department" | "costcenter";
+  type: NodeType;
+  level: number;
   budget?: number;
   utilized?: number;
   children?: TreeNode[];
+  // Company fields
+  legalName?: string;
+  pan?: string;
+  cin?: string;
   gstin?: string;
+  baseCurrency?: string;
+  // Program fields
+  description?: string;
+  status?: string;
+  // Cost center fields
+  glCode?: string;
+  // Department fields
   glCodePrefix?: string;
+  // Linking
   parentId?: string;
 }
 
-type NodeType = "enterprise" | "company" | "division" | "department" | "costcenter";
-
 interface NodeFormData {
   name: string;
+  code: string;
   type: NodeType;
   parentId: string;
-  budget: string;
-  code: string;
-  glCodePrefix: string;
+  // Company fields
+  legalName: string;
+  pan: string;
+  cin: string;
   gstin: string;
+  baseCurrency: string;
+  // Program fields
+  description: string;
+  // Division/Department/Cost Center fields
+  budget: string;
+  glCodePrefix: string;
+  glCode: string;
 }
 
 const EMPTY_FORM: NodeFormData = {
   name: "",
-  type: "enterprise",
-  parentId: "",
-  budget: "",
   code: "",
-  glCodePrefix: "",
+  type: "bank",
+  parentId: "",
+  legalName: "",
+  pan: "",
+  cin: "",
   gstin: "",
+  baseCurrency: "INR",
+  description: "",
+  budget: "",
+  glCodePrefix: "",
+  glCode: "",
 };
 
-const NODE_TYPE_LABELS: Record<NodeType, string> = {
-  enterprise: "Enterprise",
-  company: "Company",
-  division: "Division",
-  department: "Department",
-  costcenter: "Cost Center",
+// =============================================================================
+// 6-Level Hierarchy Configuration
+// =============================================================================
+
+const HIERARCHY_LEVELS: Record<NodeType, { level: number; label: string; apiType: string; childType: NodeType | null; parentType: NodeType | null }> = {
+  bank:       { level: 1, label: "Bank/Institution",  apiType: "bank",       childType: "program",    parentType: null },
+  program:    { level: 2, label: "Program",            apiType: "program",    childType: "company",    parentType: "bank" },
+  company:    { level: 3, label: "Company",            apiType: "company",    childType: "division",   parentType: "program" },
+  division:   { level: 4, label: "Division",           apiType: "division",   childType: "department", parentType: "company" },
+  department: { level: 5, label: "Department",         apiType: "department", childType: "costcenter", parentType: "division" },
+  costcenter: { level: 6, label: "Cost Center",        apiType: "costCenter", childType: null,         parentType: "department" },
 };
 
-// Maps our tree node type to the API's expected type value
-const NODE_TYPE_TO_API: Record<NodeType, string> = {
-  enterprise: "enterprise",
-  company: "company",
-  division: "division",
-  department: "department",
-  costcenter: "costCenter",
+const LEVEL_COLORS: Record<NodeType, string> = {
+  bank:       "bg-slate-500/10 text-slate-700",
+  program:    "bg-indigo-500/10 text-indigo-600",
+  company:    "bg-blue-500/10 text-blue-600",
+  division:   "bg-purple-500/10 text-purple-600",
+  department: "bg-amber-500/10 text-amber-600",
+  costcenter: "bg-emerald-500/10 text-emerald-600",
+};
+
+const LEVEL_BADGE_COLORS: Record<NodeType, string> = {
+  bank:       "bg-slate-100 text-slate-700 border-slate-200",
+  program:    "bg-indigo-100 text-indigo-700 border-indigo-200",
+  company:    "bg-blue-100 text-blue-700 border-blue-200",
+  division:   "bg-purple-100 text-purple-700 border-purple-200",
+  department: "bg-amber-100 text-amber-700 border-amber-200",
+  costcenter: "bg-emerald-100 text-emerald-700 border-emerald-200",
+};
+
+const LEVEL_ICONS: Record<NodeType, React.ElementType> = {
+  bank:       Landmark,
+  program:    CreditCard,
+  company:    Building2,
+  division:   Layers,
+  department: Users,
+  costcenter: IndianRupee,
 };
 
 // =============================================================================
@@ -94,54 +155,78 @@ const NODE_TYPE_TO_API: Record<NodeType, string> = {
 // =============================================================================
 
 function buildTree(): TreeNode[] {
-  const enterprises = getEnterprises();
+  const banks = getBankInstitutions();
+  const programs = getPrograms();
   const companies = getCompanies();
   const divisions = getDivisions();
   const departments = getDepartments();
   const costCenters = getCostCenters();
 
-  return enterprises.map((ent) => ({
-    id: ent.id,
-    name: ent.name,
-    type: "enterprise" as const,
-    children: companies
-      .filter((c) => c.enterpriseId === ent.id)
-      .map((comp) => ({
-        id: comp.id,
-        name: comp.name,
-        type: "company" as const,
-        gstin: comp.gstin,
-        parentId: ent.id,
-        children: divisions
-          .filter((d) => d.companyId === comp.id)
-          .map((div) => ({
-            id: div.id,
-            name: div.name,
-            code: div.code,
-            type: "division" as const,
-            budget: div.budget,
-            parentId: comp.id,
-            children: departments
-              .filter((dept) => dept.divisionId === div.id)
-              .map((dept) => ({
-                id: dept.id,
-                name: dept.name,
-                code: dept.code,
-                type: "department" as const,
-                budget: dept.budget,
-                glCodePrefix: dept.glCodePrefix,
-                parentId: div.id,
-                children: costCenters
-                  .filter((cc) => cc.companyId === comp.id)
-                  .slice(0, 2)
-                  .map((cc) => ({
-                    id: cc.id,
-                    name: cc.name,
-                    code: cc.code,
-                    type: "costcenter" as const,
-                    budget: cc.budget,
-                    utilized: cc.utilized,
-                    parentId: comp.id,
+  return banks.map((bank) => ({
+    id: bank.id,
+    name: bank.name,
+    code: bank.code,
+    type: "bank" as const,
+    level: 1,
+    status: bank.status,
+    children: programs
+      .filter((p) => p.bankId === bank.id)
+      .map((prog) => ({
+        id: prog.id,
+        name: prog.name,
+        code: prog.code,
+        type: "program" as const,
+        level: 2,
+        description: prog.description,
+        status: prog.status,
+        parentId: bank.id,
+        children: companies
+          .filter((c) => c.programId === prog.id)
+          .map((comp) => ({
+            id: comp.id,
+            name: comp.name,
+            type: "company" as const,
+            level: 3,
+            legalName: comp.legalName,
+            pan: comp.pan,
+            cin: comp.cin,
+            gstin: comp.gstin,
+            baseCurrency: comp.baseCurrency,
+            parentId: prog.id,
+            children: divisions
+              .filter((d) => d.companyId === comp.id)
+              .map((div) => ({
+                id: div.id,
+                name: div.name,
+                code: div.code,
+                type: "division" as const,
+                level: 4,
+                budget: div.budget,
+                parentId: comp.id,
+                children: departments
+                  .filter((dept) => dept.divisionId === div.id)
+                  .map((dept) => ({
+                    id: dept.id,
+                    name: dept.name,
+                    code: dept.code,
+                    type: "department" as const,
+                    level: 5,
+                    budget: dept.budget,
+                    glCodePrefix: dept.glCodePrefix,
+                    parentId: div.id,
+                    children: costCenters
+                      .filter((cc) => cc.departmentId === dept.id)
+                      .map((cc) => ({
+                        id: cc.id,
+                        name: cc.name,
+                        code: cc.code,
+                        type: "costcenter" as const,
+                        level: 6,
+                        budget: cc.budget,
+                        utilized: cc.utilized,
+                        glCode: cc.glCode,
+                        parentId: dept.id,
+                      })),
                   })),
               })),
           })),
@@ -150,7 +235,7 @@ function buildTree(): TreeNode[] {
 }
 
 // =============================================================================
-// Flatten tree for parent selection dropdowns
+// Flatten tree for parent selection
 // =============================================================================
 
 function flattenTree(nodes: TreeNode[], depth = 0): { node: TreeNode; depth: number }[] {
@@ -173,8 +258,10 @@ function nodeMatchesSearch(node: TreeNode, query: string): boolean {
   return (
     node.name.toLowerCase().includes(q) ||
     (node.code?.toLowerCase().includes(q) ?? false) ||
-    node.type.toLowerCase().includes(q) ||
-    (node.gstin?.toLowerCase().includes(q) ?? false)
+    HIERARCHY_LEVELS[node.type].label.toLowerCase().includes(q) ||
+    (node.gstin?.toLowerCase().includes(q) ?? false) ||
+    (node.pan?.toLowerCase().includes(q) ?? false) ||
+    (node.glCode?.toLowerCase().includes(q) ?? false)
   );
 }
 
@@ -189,9 +276,7 @@ function filterTree(nodes: TreeNode[], query: string): TreeNode[] {
       if (selfMatches || childMatches.length > 0) {
         return {
           ...node,
-          children: selfMatches
-            ? node.children // If the node itself matches, show all children
-            : childMatches, // Otherwise only show matching descendants
+          children: selfMatches ? node.children : childMatches,
         };
       }
       return null;
@@ -200,24 +285,27 @@ function filterTree(nodes: TreeNode[], query: string): TreeNode[] {
 }
 
 // =============================================================================
-// Get valid parent types for each node type
+// Count nodes by type
 // =============================================================================
 
-function getParentTypesForNodeType(type: NodeType): NodeType[] {
-  switch (type) {
-    case "enterprise":
-      return []; // No parent
-    case "company":
-      return ["enterprise"];
-    case "division":
-      return ["company"];
-    case "department":
-      return ["division"];
-    case "costcenter":
-      return ["company"];
-    default:
-      return [];
+function countNodes(nodes: TreeNode[]): Record<NodeType, number> {
+  const counts: Record<NodeType, number> = {
+    bank: 0,
+    program: 0,
+    company: 0,
+    division: 0,
+    department: 0,
+    costcenter: 0,
+  };
+
+  function walk(items: TreeNode[]) {
+    for (const node of items) {
+      counts[node.type]++;
+      if (node.children) walk(node.children);
+    }
   }
+  walk(nodes);
+  return counts;
 }
 
 // =============================================================================
@@ -229,37 +317,25 @@ function TreeNodeComponent({
   depth = 0,
   searchQuery,
   onEdit,
+  onAddChild,
 }: {
   node: TreeNode;
   depth?: number;
   searchQuery: string;
   onEdit: (node: TreeNode) => void;
+  onAddChild: (parentNode: TreeNode) => void;
 }) {
-  const [expanded, setExpanded] = useState(depth < 2 || searchQuery.length > 0);
+  const [expanded, setExpanded] = useState(depth < 3 || searchQuery.length > 0);
   const hasChildren = node.children && node.children.length > 0;
   const utilPercent = node.budget && node.utilized ? Math.round((node.utilized / node.budget) * 100) : undefined;
-
-  const typeIcons = {
-    enterprise: Building2,
-    company: Building2,
-    division: Layers,
-    department: Users,
-    costcenter: IndianRupee,
-  };
-  const Icon = typeIcons[node.type];
-
-  const typeColors = {
-    enterprise: "bg-primary/10 text-primary",
-    company: "bg-blue-500/10 text-blue-600",
-    division: "bg-purple-500/10 text-purple-600",
-    department: "bg-amber-500/10 text-amber-600",
-    costcenter: "bg-emerald-500/10 text-emerald-600",
-  };
+  const config = HIERARCHY_LEVELS[node.type];
+  const Icon = LEVEL_ICONS[node.type];
+  const canAddChild = config.childType !== null;
 
   return (
     <div>
       <div
-        className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 cursor-pointer group"
+        className="flex items-center gap-2 py-2 px-2 rounded-md hover:bg-muted/50 cursor-pointer group transition-colors"
         style={{ paddingLeft: `${depth * 24 + 8}px` }}
         onClick={() => setExpanded(!expanded)}
       >
@@ -270,53 +346,87 @@ function TreeNodeComponent({
             <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
           )
         ) : (
-          <span className="w-4" />
+          <span className="w-4 shrink-0" />
         )}
 
-        <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${typeColors[node.type]}`}>
+        <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${LEVEL_COLORS[node.type]}`}>
           <Icon className="w-3.5 h-3.5" />
         </div>
 
         <span className="text-sm font-medium flex-1 truncate">{node.name}</span>
 
+        {/* Level badge */}
+        <Badge variant="outline" className={`text-[9px] px-1.5 py-0 h-4 shrink-0 ${LEVEL_BADGE_COLORS[node.type]}`}>
+          L{config.level} {config.label}
+        </Badge>
+
         {node.code && (
-          <Badge variant="outline" className="text-[9px] hidden group-hover:flex">
+          <Badge variant="outline" className="text-[9px] hidden group-hover:flex shrink-0">
             {node.code}
           </Badge>
         )}
 
         {node.gstin && (
-          <Badge variant="outline" className="text-[9px] hidden sm:flex">
+          <Badge variant="outline" className="text-[9px] hidden sm:flex shrink-0">
             GSTIN: {node.gstin.slice(0, 4)}...
           </Badge>
         )}
 
+        {node.pan && (
+          <Badge variant="outline" className="text-[9px] hidden sm:flex shrink-0">
+            PAN: {node.pan}
+          </Badge>
+        )}
+
         {node.budget && (
-          <span className="text-xs text-muted-foreground hidden sm:block">
+          <span className="text-xs text-muted-foreground hidden sm:block shrink-0">
             {formatINRCompact(node.budget)}
           </span>
         )}
 
         {utilPercent !== undefined && (
-          <div className="w-16 hidden sm:block">
-            <Progress
-              value={utilPercent}
-              className="h-1.5"
-            />
+          <div className="w-16 hidden sm:block shrink-0">
+            <Progress value={utilPercent} className="h-1.5" />
           </div>
         )}
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(node);
-          }}
-        >
-          <Edit2 className="w-3 h-3" />
-        </Button>
+        {node.glCode && (
+          <Badge variant="outline" className="text-[9px] hidden group-hover:flex shrink-0">
+            GL: {node.glCode}
+          </Badge>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          {canAddChild && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              title={`Add ${HIERARCHY_LEVELS[config.childType!].label}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddChild(node);
+              }}
+            >
+              <Plus className="w-3 h-3" />
+            </Button>
+          )}
+          {node.type !== "bank" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              title={`Edit ${config.label}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(node);
+              }}
+            >
+              <Edit2 className="w-3 h-3" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {expanded && hasChildren && (
@@ -328,6 +438,7 @@ function TreeNodeComponent({
               depth={depth + 1}
               searchQuery={searchQuery}
               onEdit={onEdit}
+              onAddChild={onAddChild}
             />
           ))}
         </div>
@@ -345,61 +456,65 @@ function NodeForm({
   setForm,
   allNodes,
   isEdit,
+  fixedType,
+  fixedParentId,
 }: {
   form: NodeFormData;
   setForm: React.Dispatch<React.SetStateAction<NodeFormData>>;
   allNodes: { node: TreeNode; depth: number }[];
   isEdit: boolean;
+  fixedType?: NodeType;
+  fixedParentId?: string;
 }) {
-  const parentTypes = getParentTypesForNodeType(form.type);
-  const needsParent = parentTypes.length > 0;
-  const parentOptions = allNodes.filter((item) => parentTypes.includes(item.node.type));
+  const config = HIERARCHY_LEVELS[form.type];
+  const parentType = config.parentType;
+  const needsParent = parentType !== null;
+  const parentOptions = parentType ? allNodes.filter((item) => item.node.type === parentType) : [];
 
-  const showBudget = ["division", "department", "costcenter"].includes(form.type);
-  const showCode = ["division", "department", "costcenter"].includes(form.type);
-  const showGlCodePrefix = form.type === "department";
-  const showGstin = form.type === "company";
+  const isBank = form.type === "bank";
+  const isProgram = form.type === "program";
+  const isCompany = form.type === "company";
+  const isDivision = form.type === "division";
+  const isDepartment = form.type === "department";
+  const isCostCenter = form.type === "costcenter";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+      {/* Type indicator */}
+      <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+        <Badge className={`${LEVEL_BADGE_COLORS[form.type]} text-xs`}>
+          Level {config.level}
+        </Badge>
+        <span className="text-sm font-medium">{config.label}</span>
+      </div>
+
       {/* Name */}
       <div className="space-y-2">
         <label className="text-sm font-medium">Name *</label>
         <Input
-          placeholder="Enter node name"
+          placeholder={`Enter ${config.label.toLowerCase()} name`}
           value={form.name}
           onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
         />
       </div>
 
-      {/* Type */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Type *</label>
-        <select
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          value={form.type}
-          onChange={(e) =>
-            setForm((prev) => ({
-              ...prev,
-              type: e.target.value as NodeType,
-              parentId: "", // Reset parent when type changes
-            }))
-          }
-          disabled={isEdit}
-        >
-          {Object.entries(NODE_TYPE_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* Code (for program, division, department, cost center) */}
+      {(isProgram || isDivision || isDepartment || isCostCenter) && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Code</label>
+          <Input
+            placeholder={isCostCenter ? "e.g. CC-SM-01" : isDivision ? "e.g. CB" : "e.g. CCP"}
+            value={form.code}
+            onChange={(e) => setForm((prev) => ({ ...prev, code: e.target.value }))}
+          />
+        </div>
+      )}
 
-      {/* Parent */}
-      {needsParent && (
+      {/* Parent selection (hidden if fixed) */}
+      {needsParent && !fixedParentId && (
         <div className="space-y-2">
           <label className="text-sm font-medium">
-            Parent ({parentTypes.map((t) => NODE_TYPE_LABELS[t]).join(" / ")}) *
+            Parent ({HIERARCHY_LEVELS[parentType!].label}) *
           </label>
           <select
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -410,27 +525,82 @@ function NodeForm({
             <option value="">Select parent...</option>
             {parentOptions.map(({ node }) => (
               <option key={node.id} value={node.id}>
-                {node.name} ({NODE_TYPE_LABELS[node.type]})
+                {node.name}
               </option>
             ))}
           </select>
         </div>
       )}
 
-      {/* Code */}
-      {showCode && (
+      {/* Program-specific fields */}
+      {isProgram && (
         <div className="space-y-2">
-          <label className="text-sm font-medium">Code</label>
+          <label className="text-sm font-medium">Description</label>
           <Input
-            placeholder="e.g. DIV-001"
-            value={form.code}
-            onChange={(e) => setForm((prev) => ({ ...prev, code: e.target.value }))}
+            placeholder="Program description"
+            value={form.description}
+            onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
           />
         </div>
       )}
 
-      {/* Budget */}
-      {showBudget && (
+      {/* Company-specific fields */}
+      {isCompany && (
+        <>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Legal Name</label>
+            <Input
+              placeholder="Full legal entity name"
+              value={form.legalName}
+              onChange={(e) => setForm((prev) => ({ ...prev, legalName: e.target.value }))}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">PAN</label>
+              <Input
+                placeholder="e.g. AABCU9603R"
+                value={form.pan}
+                onChange={(e) => setForm((prev) => ({ ...prev, pan: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">CIN</label>
+              <Input
+                placeholder="e.g. U65100MH2020PTC..."
+                value={form.cin}
+                onChange={(e) => setForm((prev) => ({ ...prev, cin: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">GSTIN</label>
+              <Input
+                placeholder="e.g. 29AABCT1234D1ZP"
+                value={form.gstin}
+                onChange={(e) => setForm((prev) => ({ ...prev, gstin: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Base Currency</label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={form.baseCurrency}
+                onChange={(e) => setForm((prev) => ({ ...prev, baseCurrency: e.target.value }))}
+              >
+                <option value="INR">INR</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+              </select>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Budget (Division, Department, Cost Center) */}
+      {(isDivision || isDepartment || isCostCenter) && (
         <div className="space-y-2">
           <label className="text-sm font-medium">Budget (INR)</label>
           <Input
@@ -443,25 +613,25 @@ function NodeForm({
       )}
 
       {/* GL Code Prefix (Department only) */}
-      {showGlCodePrefix && (
+      {isDepartment && (
         <div className="space-y-2">
           <label className="text-sm font-medium">GL Code Prefix</label>
           <Input
-            placeholder="e.g. GL-4200"
+            placeholder="e.g. 4200"
             value={form.glCodePrefix}
             onChange={(e) => setForm((prev) => ({ ...prev, glCodePrefix: e.target.value }))}
           />
         </div>
       )}
 
-      {/* GSTIN (Company only) */}
-      {showGstin && (
+      {/* GL Code (Cost Center only) */}
+      {isCostCenter && (
         <div className="space-y-2">
-          <label className="text-sm font-medium">GSTIN</label>
+          <label className="text-sm font-medium">GL Code</label>
           <Input
-            placeholder="e.g. 29AABCT1234D1ZP"
-            value={form.gstin}
-            onChange={(e) => setForm((prev) => ({ ...prev, gstin: e.target.value }))}
+            placeholder="e.g. 4100-001"
+            value={form.glCode}
+            onChange={(e) => setForm((prev) => ({ ...prev, glCode: e.target.value }))}
           />
         </div>
       )}
@@ -483,12 +653,15 @@ export default function HierarchyPage() {
   const [editingNodeId, setEditingNodeId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [treeVersion, setTreeVersion] = useState(0);
+  const [addChildType, setAddChildType] = useState<NodeType | null>(null);
+  const [addParentId, setAddParentId] = useState<string>("");
 
   // Build tree fresh each render (or when treeVersion changes)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const tree = useMemo(() => buildTree(), [treeVersion]);
   const allNodes = useMemo(() => flattenTree(tree), [tree]);
   const filteredTree = useMemo(() => filterTree(tree, searchQuery), [tree, searchQuery]);
+  const nodeCounts = useMemo(() => countNodes(tree), [tree]);
 
   // -------------------------------------------------------------------------
   // Build API record from form data
@@ -499,9 +672,22 @@ export default function HierarchyPage() {
     const record: Record<string, any> = { name: form.name };
 
     switch (form.type) {
+      case "program":
+        record.bankId = form.parentId;
+        if (form.code) record.code = form.code;
+        if (form.description) record.description = form.description;
+        break;
       case "company":
-        record.enterpriseId = form.parentId;
+        // Map programId as the parent link; also set enterpriseId to the bank
+        record.programId = form.parentId;
+        // Look up program to find bankId
+        const prog = getPrograms().find((p) => p.id === form.parentId);
+        record.enterpriseId = prog?.bankId || "";
+        if (form.legalName) record.legalName = form.legalName;
+        if (form.pan) record.pan = form.pan;
+        if (form.cin) record.cin = form.cin;
         if (form.gstin) record.gstin = form.gstin;
+        record.baseCurrency = form.baseCurrency || "INR";
         break;
       case "division":
         record.companyId = form.parentId;
@@ -515,9 +701,14 @@ export default function HierarchyPage() {
         if (form.glCodePrefix) record.glCodePrefix = form.glCodePrefix;
         break;
       case "costcenter":
-        record.companyId = form.parentId;
+        record.departmentId = form.parentId;
+        // Look up department to find company for backward compat
+        const dept = getDepartments().find((d) => d.id === form.parentId);
+        const div = dept ? getDivisions().find((d) => d.id === dept.divisionId) : undefined;
+        record.companyId = div?.companyId || "";
         if (form.code) record.code = form.code;
         if (form.budget) record.budget = Number(form.budget);
+        if (form.glCode) record.glCode = form.glCode;
         break;
     }
 
@@ -528,11 +719,35 @@ export default function HierarchyPage() {
   // Handlers
   // -------------------------------------------------------------------------
 
+  // Open "Add Child" dialog context-sensitively
+  const openAddChildDialog = useCallback((parentNode: TreeNode) => {
+    const config = HIERARCHY_LEVELS[parentNode.type];
+    const childType = config.childType;
+    if (!childType) return;
+
+    setAddChildType(childType);
+    setAddParentId(parentNode.id);
+    setAddForm({
+      ...EMPTY_FORM,
+      type: childType,
+      parentId: parentNode.id,
+    });
+    setAddDialogOpen(true);
+  }, []);
+
+  // Open generic "Add Node" dialog (top-level)
+  const openAddDialog = useCallback(() => {
+    setAddChildType(null);
+    setAddParentId("");
+    setAddForm({ ...EMPTY_FORM, type: "program" });
+    setAddDialogOpen(true);
+  }, []);
+
   const handleAdd = useCallback(async () => {
     if (!addForm.name.trim()) return;
 
-    const parentTypes = getParentTypesForNodeType(addForm.type);
-    if (parentTypes.length > 0 && !addForm.parentId) return;
+    const config = HIERARCHY_LEVELS[addForm.type];
+    if (config.parentType && !addForm.parentId) return;
 
     setIsSubmitting(true);
     try {
@@ -540,7 +755,7 @@ export default function HierarchyPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: NODE_TYPE_TO_API[addForm.type],
+          type: HIERARCHY_LEVELS[addForm.type].apiType,
           record: buildRecord(addForm),
         }),
       });
@@ -548,6 +763,8 @@ export default function HierarchyPage() {
       if (res.ok) {
         setAddDialogOpen(false);
         setAddForm({ ...EMPTY_FORM });
+        setAddChildType(null);
+        setAddParentId("");
         setTreeVersion((v) => v + 1);
         router.refresh();
       }
@@ -567,7 +784,7 @@ export default function HierarchyPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: NODE_TYPE_TO_API[editForm.type],
+          type: HIERARCHY_LEVELS[editForm.type].apiType,
           id: editingNodeId,
           record: buildRecord(editForm),
         }),
@@ -591,12 +808,18 @@ export default function HierarchyPage() {
     setEditingNodeId(node.id);
     setEditForm({
       name: node.name,
+      code: node.code || "",
       type: node.type,
       parentId: node.parentId || "",
-      budget: node.budget?.toString() || "",
-      code: node.code || "",
-      glCodePrefix: node.glCodePrefix || "",
+      legalName: node.legalName || "",
+      pan: node.pan || "",
+      cin: node.cin || "",
       gstin: node.gstin || "",
+      baseCurrency: node.baseCurrency || "INR",
+      description: node.description || "",
+      budget: node.budget?.toString() || "",
+      glCodePrefix: node.glCodePrefix || "",
+      glCode: node.glCode || "",
     });
     setEditDialogOpen(true);
   }, []);
@@ -605,40 +828,68 @@ export default function HierarchyPage() {
   // Render
   // -------------------------------------------------------------------------
 
+  const childTypeLabel = addChildType ? HIERARCHY_LEVELS[addChildType].label : "Node";
+  const parentNodeName = addParentId ? allNodes.find((n) => n.node.id === addParentId)?.node.name : null;
+
   return (
     <div className="space-y-6 animate-in">
-      <PageHeader title="Organization Hierarchy" description="Manage your corporate hierarchy structure">
+      <PageHeader title="Organization Hierarchy" description="Visa/Mastercard 6-level corporate card hierarchy">
         <Button variant="outline">
           <FolderTree className="w-4 h-4" />
           Import from HRIS
         </Button>
-        <Button onClick={() => { setAddForm({ ...EMPTY_FORM }); setAddDialogOpen(true); }}>
+        <Button onClick={openAddDialog}>
           <Plus className="w-4 h-4" />
           Add Node
         </Button>
       </PageHeader>
 
+      {/* Level Legend */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Info className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-muted-foreground">Hierarchy Levels</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(Object.entries(HIERARCHY_LEVELS) as [NodeType, typeof HIERARCHY_LEVELS[NodeType]][]).map(([type, config]) => {
+              const Icon = LEVEL_ICONS[type];
+              return (
+                <div
+                  key={type}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium ${LEVEL_BADGE_COLORS[type]} border`}
+                >
+                  <Icon className="w-3 h-3" />
+                  <span>L{config.level}</span>
+                  <span>{config.label}</span>
+                  <Badge variant="secondary" className="ml-1 text-[9px] h-4 px-1">
+                    {nodeCounts[type]}
+                  </Badge>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        {[
-          { label: "Enterprises", value: getEnterprises().length, icon: Building2 },
-          { label: "Companies", value: getCompanies().length, icon: Building2 },
-          { label: "Divisions", value: getDivisions().length, icon: Layers },
-          { label: "Departments", value: getDepartments().length, icon: Users },
-          { label: "Cost Centers", value: getCostCenters().length, icon: IndianRupee },
-        ].map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                <stat.icon className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-xl font-bold">{stat.value}</p>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {(Object.entries(HIERARCHY_LEVELS) as [NodeType, typeof HIERARCHY_LEVELS[NodeType]][]).map(([type, config]) => {
+          const Icon = LEVEL_ICONS[type];
+          return (
+            <Card key={type}>
+              <CardContent className="p-3 flex items-center gap-2">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${LEVEL_COLORS[type]}`}>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-lg font-bold">{nodeCounts[type]}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{config.label}s</p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Search */}
@@ -674,6 +925,7 @@ export default function HierarchyPage() {
                   node={node}
                   searchQuery={searchQuery}
                   onEdit={openEditDialog}
+                  onAddChild={openAddChildDialog}
                 />
               ))
             ) : (
@@ -691,19 +943,53 @@ export default function HierarchyPage() {
       {/* Add Node Dialog                                                */}
       {/* ============================================================= */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add Hierarchy Node</DialogTitle>
+            <DialogTitle>
+              {addChildType
+                ? `Add ${childTypeLabel}`
+                : "Add Hierarchy Node"}
+            </DialogTitle>
             <DialogDescription>
-              Create a new node in your organization hierarchy.
+              {parentNodeName
+                ? `Adding a ${childTypeLabel.toLowerCase()} under "${parentNodeName}".`
+                : "Create a new node in your organization hierarchy. Select a type to begin."}
             </DialogDescription>
           </DialogHeader>
+
+          {/* If no fixed child type, allow type selection (only non-bank types) */}
+          {!addChildType && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Node Type *</label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={addForm.type}
+                onChange={(e) =>
+                  setAddForm((prev) => ({
+                    ...prev,
+                    type: e.target.value as NodeType,
+                    parentId: "",
+                  }))
+                }
+              >
+                {(Object.entries(HIERARCHY_LEVELS) as [NodeType, typeof HIERARCHY_LEVELS[NodeType]][])
+                  .filter(([type]) => type !== "bank") // Bank is read-only
+                  .map(([type, config]) => (
+                    <option key={type} value={type}>
+                      L{config.level} - {config.label}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
 
           <NodeForm
             form={addForm}
             setForm={setAddForm}
             allNodes={allNodes}
             isEdit={false}
+            fixedType={addChildType || undefined}
+            fixedParentId={addParentId || undefined}
           />
 
           <DialogFooter>
@@ -719,7 +1005,7 @@ export default function HierarchyPage() {
               ) : (
                 <>
                   <Plus className="w-4 h-4" />
-                  Add Node
+                  Add {addChildType ? childTypeLabel : "Node"}
                 </>
               )}
             </Button>
@@ -731,9 +1017,9 @@ export default function HierarchyPage() {
       {/* Edit Node Dialog                                               */}
       {/* ============================================================= */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Edit {NODE_TYPE_LABELS[editForm.type]}</DialogTitle>
+            <DialogTitle>Edit {HIERARCHY_LEVELS[editForm.type]?.label || "Node"}</DialogTitle>
             <DialogDescription>
               Update the details for this hierarchy node.
             </DialogDescription>

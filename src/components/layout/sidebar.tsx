@@ -31,6 +31,7 @@ import {
   Layers,
   SlidersHorizontal,
   Database,
+  BookOpen,
 } from "lucide-react";
 
 interface NavItem {
@@ -90,16 +91,10 @@ function getNavGroups(role: UserRole, mc: import("@/lib/role-access").ModuleConf
     },
   ];
 
-  // Card Portal
+  // Card Portal — day-to-day operations
   const cardItems: NavItem[] = [];
-  if (canAccessNav(role, "hierarchy", mc))
-    cardItems.push({ label: "Hierarchy", href: "/hierarchy", icon: Network, section: "hierarchy" });
-  if (canAccessNav(role, "employees", mc))
-    cardItems.push({ label: "Employees", href: "/employees", icon: Users, section: "employees" });
   if (canAccessNav(role, "cards", mc))
-    cardItems.push({ label: "Cards", href: "/cards", icon: CreditCard, section: "cards" });
-  if (canAccessNav(role, "card_controls", mc))
-    cardItems.push({ label: "Card Controls", href: "/cards/new", icon: SlidersHorizontal, section: "card_controls" });
+    cardItems.push({ label: "Card Management", href: "/cards", icon: CreditCard, section: "cards" });
   if (canAccessNav(role, "transactions", mc))
     cardItems.push({ label: "Transactions", href: "/transactions", icon: ArrowRightLeft, section: "transactions" });
   if (cardItems.length > 0)
@@ -114,26 +109,34 @@ function getNavGroups(role: UserRole, mc: import("@/lib/role-access").ModuleConf
       expItems.push({ label: "Expense Reports", href: "/expense-reports", icon: FileText, section: "expense_reports" });
     if (canAccessNav(role, "approvals", mc))
       expItems.push({ label: "Approvals", href: "/approvals", icon: CheckSquare, section: "approvals", badge: role !== "AUDITOR" ? 8 : undefined, badgeVariant: "destructive" });
-    if (canAccessNav(role, "policies", mc))
-      expItems.push({ label: "Policies", href: "/policies", icon: Shield, section: "policies" });
-    if (canAccessNav(role, "doa", mc))
-      expItems.push({ label: "DOA Config", href: "/doa", icon: Scale, section: "doa" });
     if (canAccessNav(role, "reimbursements", mc))
       expItems.push({ label: "Reimbursements", href: "/reimbursements", icon: Banknote, section: "reimbursements" });
     if (expItems.length > 0)
       groups.push({ label: "Expense Management", items: expItems });
   }
 
+  // Reports & Analytics
+  if (canAccessNav(role, "reports", mc))
+    groups.push({ label: "Reports", items: [{ label: "Reports & Analytics", href: "/reports", icon: BarChart3, section: "reports" }] });
+
   // Intelligent Service
   if (canAccessNav(role, "ai_assistant", mc))
     groups.push({ label: "Intelligent Service", items: [{ label: "AI Assistant", href: "/ai-assistant", icon: Bot, section: "ai_assistant" }] });
 
-  // Reports
-  if (canAccessNav(role, "reports", mc))
-    groups.push({ label: "Reports & Analytics", items: [{ label: "Reports", href: "/reports", icon: BarChart3, section: "reports" }] });
-
-  // Administration
+  // Administration — setup, config, one-time operations
   const adminItems: NavItem[] = [];
+  if (canAccessNav(role, "settings", mc))
+    adminItems.push({ label: "Setup Guide", href: "/setup-guide", icon: BookOpen, section: "settings" });
+  if (canAccessNav(role, "hierarchy", mc))
+    adminItems.push({ label: "Hierarchy", href: "/hierarchy", icon: Network, section: "hierarchy" });
+  if (canAccessNav(role, "employees", mc))
+    adminItems.push({ label: "Employees", href: "/employees", icon: Users, section: "employees" });
+  if (canAccessNav(role, "card_controls", mc))
+    adminItems.push({ label: "Card Control Policies", href: "/card-controls", icon: SlidersHorizontal, section: "card_controls" });
+  if (mc.expenseManagement && canAccessNav(role, "policies", mc))
+    adminItems.push({ label: "Expense Policies", href: "/policies", icon: Shield, section: "policies" });
+  if (mc.expenseManagement && canAccessNav(role, "doa", mc))
+    adminItems.push({ label: "DOA Config", href: "/doa", icon: Scale, section: "doa" });
   if (canAccessNav(role, "settings", mc))
     adminItems.push({ label: "Settings", href: "/settings", icon: Settings, section: "settings" });
   if (canAccessNav(role, "integrations", mc))

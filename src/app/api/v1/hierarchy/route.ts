@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getHierarchy,
   addHierarchyNode,
+  updateBankInstitution,
+  updateProgram,
   updateEnterprise,
   updateCompany,
   updateDivision,
@@ -32,7 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validTypes = ["enterprise", "company", "division", "department", "costCenter"];
+    const validTypes = ["bank", "program", "enterprise", "company", "division", "department", "costCenter"];
     if (!validTypes.includes(body.type)) {
       return NextResponse.json(
         { error: `Invalid type. Must be one of: ${validTypes.join(", ")}` },
@@ -61,7 +63,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const validTypes = ["enterprise", "company", "division", "department", "costCenter"];
+    const validTypes = ["bank", "program", "enterprise", "company", "division", "department", "costCenter"];
     if (!validTypes.includes(body.type)) {
       return NextResponse.json(
         { error: `Invalid type. Must be one of: ${validTypes.join(", ")}` },
@@ -71,6 +73,12 @@ export async function PUT(request: NextRequest) {
 
     let updated = null;
     switch (body.type) {
+      case "bank":
+        updated = updateBankInstitution(body.id, body.record);
+        break;
+      case "program":
+        updated = updateProgram(body.id, body.record);
+        break;
       case "enterprise":
         updated = updateEnterprise(body.id, body.record);
         break;

@@ -4,8 +4,11 @@ WORKDIR /app
 
 RUN apk add --no-cache libc6-compat
 
+# Install dependencies at build time (cached in Docker layer)
 COPY package.json package-lock.json* ./
+RUN npm install --include=dev
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npm install && npm run dev"]
+# Dev: hot-reload with volume mount overriding /app source
+CMD ["npm", "run", "dev"]

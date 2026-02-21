@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/page-header";
 import { APP_NAME, DEMO_USERS, ROLE_LABELS } from "@/lib/constants";
 import { useModuleConfig } from "@/components/providers/module-config-provider";
+import { toast } from "sonner";
 import {
   Building2,
   Users,
@@ -41,7 +42,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 animate-in">
       <PageHeader title="Settings" description="Manage your organization settings and preferences">
-        <Button>
+        <Button onClick={() => toast.success("Settings saved successfully")}>
           <Save className="w-4 h-4" />
           Save Changes
         </Button>
@@ -161,7 +162,9 @@ export default function SettingsPage() {
                   <button
                     onClick={() => {
                       if (!mod.required) {
-                        updateConfig({ [mod.key]: !modules[mod.key as keyof typeof modules] });
+                        const newVal = !modules[mod.key as keyof typeof modules];
+                        updateConfig({ [mod.key]: newVal });
+                        toast.success(`${mod.label} ${newVal ? "enabled" : "disabled"}`);
                       }
                     }}
                     className="shrink-0"

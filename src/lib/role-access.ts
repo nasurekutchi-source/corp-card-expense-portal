@@ -94,7 +94,7 @@ export function canAccessNav(
   moduleConfig: ModuleConfig = defaultModuleConfig
 ): boolean {
   if (EXPENSE_SECTIONS.includes(section) && !moduleConfig.expenseManagement) return false;
-  if (section === "ai_assistant" && !moduleConfig.aiAssistant) return false;
+  if (section === "ai_assistant" && (!moduleConfig.aiAssistant || !moduleConfig.expenseManagement)) return false;
   return ROLE_NAV[role]?.includes(section) ?? false;
 }
 

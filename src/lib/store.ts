@@ -9,6 +9,8 @@
 
 import { generateId } from "./utils";
 import {
+  demoBankInstitutions,
+  demoPrograms,
   demoEnterprises,
   demoCompanies,
   demoDivisions,
@@ -21,6 +23,7 @@ import {
   demoExpenseReports,
   demoApprovals,
   demoPolicies,
+  demoCardControlPolicies,
   doaAuthorityLevels as demoDoaAuthorityLevels,
   doaApprovalMatrix as demoDoaApprovalMatrix,
 } from "./demo-data";
@@ -28,6 +31,22 @@ import {
 // =============================================================================
 // Type Definitions
 // =============================================================================
+
+export interface BankInstitution {
+  id: string;
+  name: string;
+  code: string;
+  status: string;
+}
+
+export interface Program {
+  id: string;
+  name: string;
+  code: string;
+  bankId: string;
+  status: string;
+  description: string;
+}
 
 export interface Enterprise {
   id: string;
@@ -44,6 +63,7 @@ export interface Company {
   cin: string;
   baseCurrency: string;
   enterpriseId: string;
+  programId: string;
 }
 
 export interface Division {
@@ -70,6 +90,7 @@ export interface CostCenter {
   glCode: string;
   budget: number;
   utilized: number;
+  departmentId: string;
   companyId: string;
 }
 
@@ -207,6 +228,32 @@ export interface Policy {
   version: number;
 }
 
+export interface CardControlPolicy {
+  id: string;
+  nodeId: string;
+  nodeType: "company" | "division" | "department";
+  nodeName: string;
+  spendLimits: {
+    perTransaction: number;
+    daily: number;
+    monthly: number;
+  };
+  channelControls: {
+    pos: boolean;
+    ecommerce: boolean;
+    contactless: boolean;
+    mobileWallet: boolean;
+    atm: boolean;
+  };
+  geographicControls: {
+    internationalAllowed: boolean;
+    domesticOnly: boolean;
+  };
+  mccRestrictions: string[];
+  isOverride: boolean;
+  inheritedFrom?: string;
+}
+
 export interface DoaAuthorityLevel {
   id: string;
   name: string;
@@ -238,6 +285,9 @@ export interface DashboardStats {
   totalTransactionsMTD: number;
   avgTransactionValue: number;
   disputeRate: number;
+  spendTrendPercent: number;
+  totalSpendLastMonth: number;
+  overdueApprovals: number;
 }
 
 export interface CategorySpend {
@@ -348,6 +398,8 @@ export interface ApprovalFilters {
 // -- Store aggregate --
 
 export interface Store {
+  bankInstitutions: BankInstitution[];
+  programs: Program[];
   enterprises: Enterprise[];
   companies: Company[];
   divisions: Division[];
@@ -360,6 +412,7 @@ export interface Store {
   expenseReports: ExpenseReport[];
   approvals: Approval[];
   policies: Policy[];
+  cardControlPolicies: CardControlPolicy[];
   doaAuthorityLevels: DoaAuthorityLevel[];
   doaApprovalMatrix: DoaApprovalRule[];
 }
@@ -378,6 +431,8 @@ function deepClone<T>(obj: T): T {
 
 function buildInitialStore(): Store {
   return {
+    bankInstitutions: deepClone(demoBankInstitutions) as BankInstitution[],
+    programs: deepClone(demoPrograms) as Program[],
     enterprises: deepClone(demoEnterprises) as Enterprise[],
     companies: deepClone(demoCompanies) as Company[],
     divisions: deepClone(demoDivisions) as Division[],
@@ -390,6 +445,7 @@ function buildInitialStore(): Store {
     expenseReports: deepClone(demoExpenseReports) as ExpenseReport[],
     approvals: deepClone(demoApprovals) as Approval[],
     policies: deepClone(demoPolicies) as Policy[],
+    cardControlPolicies: deepClone(demoCardControlPolicies) as CardControlPolicy[],
     doaAuthorityLevels: deepClone(demoDoaAuthorityLevels) as DoaAuthorityLevel[],
     doaApprovalMatrix: deepClone(demoDoaApprovalMatrix) as DoaApprovalRule[],
   };
@@ -455,6 +511,70 @@ export function exportStore() {
     stats: getStats(),
     exportedAt: new Date().toISOString(),
   };
+}
+
+// =============================================================================
+// Bank/Institution CRUD (Level 1 - read-only in UI, but CRUD available)
+// =============================================================================
+
+export function getBankInstitutions(): BankInstitution[] {
+  return store.bankInstitutions;
+}
+
+export function getBankInstitution(id: string): BankInstitution | undefined {
+  return store.bankInstitutions.find((b) => b.id === id);
+}
+
+export function addBankInstitution(data: Partial<BankInstitution>): BankInstitution {
+  const bank: BankInstitution = {
+    id: data.id || `bank-${generateId()}`,
+    name: "",
+    code: "",
+    status: "ACTIVE",
+    ...data,
+  };
+  store.bankInstitutions.push(bank);
+  return bank;
+}
+
+export function updateBankInstitution(id: string, updates: Partial<BankInstitution>): BankInstitution | null {
+  const idx = store.bankInstitutions.findIndex((b) => b.id === id);
+  if (idx === -1) return null;
+  store.bankInstitutions[idx] = { ...store.bankInstitutions[idx], ...updates, id };
+  return store.bankInstitutions[idx];
+}
+
+// =============================================================================
+// Program CRUD (Level 2)
+// =============================================================================
+
+export function getPrograms(): Program[] {
+  return store.programs;
+}
+
+export function getProgram(id: string): Program | undefined {
+  return store.programs.find((p) => p.id === id);
+}
+
+export function addProgram(data: Partial<Program>): Program {
+  const program: Program = {
+    id: data.id || `prog-${generateId()}`,
+    name: "",
+    code: "",
+    bankId: "",
+    status: "ACTIVE",
+    description: "",
+    ...data,
+  };
+  store.programs.push(program);
+  return program;
+}
+
+export function updateProgram(id: string, updates: Partial<Program>): Program | null {
+  const idx = store.programs.findIndex((p) => p.id === id);
+  if (idx === -1) return null;
+  store.programs[idx] = { ...store.programs[idx], ...updates, id };
+  return store.programs[idx];
 }
 
 // =============================================================================
@@ -529,6 +649,7 @@ export function addCompany(data: Partial<Company>): Company {
     cin: "",
     baseCurrency: "INR",
     enterpriseId: "",
+    programId: "",
     ...data,
   };
   store.companies.push(company);
@@ -690,6 +811,7 @@ export function addCostCenter(data: Partial<CostCenter>): CostCenter {
     glCode: "",
     budget: 0,
     utilized: 0,
+    departmentId: "",
     companyId: "",
     ...data,
   };
@@ -1468,6 +1590,118 @@ export function bulkImportPolicies(
 }
 
 // =============================================================================
+// Card Control Policy CRUD
+// =============================================================================
+
+export function getCardControlPolicies(): CardControlPolicy[] {
+  return store.cardControlPolicies;
+}
+
+export function getCardControlPolicy(id: string): CardControlPolicy | undefined {
+  return store.cardControlPolicies.find((p) => p.id === id);
+}
+
+export function getCardControlPolicyByNode(nodeId: string): CardControlPolicy | undefined {
+  return store.cardControlPolicies.find((p) => p.nodeId === nodeId);
+}
+
+export function addCardControlPolicy(data: Partial<CardControlPolicy>): CardControlPolicy {
+  const policy: CardControlPolicy = {
+    id: data.id || `ccp-${generateId()}`,
+    nodeId: "",
+    nodeType: "company",
+    nodeName: "",
+    spendLimits: { perTransaction: 50000, daily: 100000, monthly: 500000 },
+    channelControls: { pos: true, ecommerce: true, contactless: true, mobileWallet: true, atm: false },
+    geographicControls: { internationalAllowed: false, domesticOnly: true },
+    mccRestrictions: [],
+    isOverride: false,
+    ...data,
+  };
+  // Remove existing policy for same nodeId if present
+  const existingIdx = store.cardControlPolicies.findIndex((p) => p.nodeId === policy.nodeId);
+  if (existingIdx !== -1) {
+    store.cardControlPolicies[existingIdx] = policy;
+  } else {
+    store.cardControlPolicies.push(policy);
+  }
+  return policy;
+}
+
+export function updateCardControlPolicy(id: string, updates: Partial<CardControlPolicy>): CardControlPolicy | null {
+  const idx = store.cardControlPolicies.findIndex((p) => p.id === id);
+  if (idx === -1) return null;
+  store.cardControlPolicies[idx] = { ...store.cardControlPolicies[idx], ...updates, id };
+  return store.cardControlPolicies[idx];
+}
+
+export function deleteCardControlPolicy(id: string): boolean {
+  const idx = store.cardControlPolicies.findIndex((p) => p.id === id);
+  if (idx === -1) return false;
+  store.cardControlPolicies.splice(idx, 1);
+  return true;
+}
+
+/**
+ * Resolve the effective card control policy for a hierarchy node.
+ * Walks up the hierarchy: department -> division -> company, returning the
+ * first policy found (closest override), or a default if none exists.
+ */
+export function getEffectiveCardControlPolicy(
+  nodeId: string,
+  nodeType: "company" | "division" | "department"
+): { policy: CardControlPolicy; source: string; sourceType: string } {
+  // Direct policy
+  const direct = store.cardControlPolicies.find((p) => p.nodeId === nodeId);
+  if (direct) {
+    return { policy: direct, source: direct.nodeName, sourceType: direct.nodeType };
+  }
+
+  // Walk up: department -> division -> company
+  if (nodeType === "department") {
+    const dept = store.departments.find((d) => d.id === nodeId);
+    if (dept) {
+      const divPolicy = store.cardControlPolicies.find((p) => p.nodeId === dept.divisionId);
+      if (divPolicy) {
+        return { policy: divPolicy, source: divPolicy.nodeName, sourceType: "division" };
+      }
+      // Try company
+      const div = store.divisions.find((d) => d.id === dept.divisionId);
+      if (div) {
+        const compPolicy = store.cardControlPolicies.find((p) => p.nodeId === div.companyId);
+        if (compPolicy) {
+          return { policy: compPolicy, source: compPolicy.nodeName, sourceType: "company" };
+        }
+      }
+    }
+  }
+
+  if (nodeType === "division") {
+    const div = store.divisions.find((d) => d.id === nodeId);
+    if (div) {
+      const compPolicy = store.cardControlPolicies.find((p) => p.nodeId === div.companyId);
+      if (compPolicy) {
+        return { policy: compPolicy, source: compPolicy.nodeName, sourceType: "company" };
+      }
+    }
+  }
+
+  // Default fallback
+  const fallback: CardControlPolicy = {
+    id: "default",
+    nodeId: nodeId,
+    nodeType: nodeType,
+    nodeName: "Default",
+    spendLimits: { perTransaction: 50000, daily: 100000, monthly: 500000 },
+    channelControls: { pos: true, ecommerce: true, contactless: true, mobileWallet: true, atm: false },
+    geographicControls: { internationalAllowed: false, domesticOnly: true },
+    mccRestrictions: ["Gambling", "Crypto"],
+    isOverride: false,
+  };
+  return { policy: fallback, source: "System Default", sourceType: "default" };
+}
+
+// =============================================================================
 // DOA Authority Level CRUD
 // =============================================================================
 
@@ -1549,20 +1783,32 @@ export function deleteDoaApprovalRule(id: string): boolean {
 
 export function getHierarchy() {
   return {
-    enterprises: store.enterprises.map((ent) => ({
-      ...ent,
-      companies: store.companies
-        .filter((c) => c.enterpriseId === ent.id)
-        .map((comp) => ({
-          ...comp,
-          divisions: store.divisions
-            .filter((d) => d.companyId === comp.id)
-            .map((div) => ({
-              ...div,
-              departments: store.departments.filter((dept) => dept.divisionId === div.id),
+    bankInstitutions: store.bankInstitutions.map((bank) => ({
+      ...bank,
+      programs: store.programs
+        .filter((p) => p.bankId === bank.id)
+        .map((prog) => ({
+          ...prog,
+          companies: store.companies
+            .filter((c) => c.programId === prog.id)
+            .map((comp) => ({
+              ...comp,
+              divisions: store.divisions
+                .filter((d) => d.companyId === comp.id)
+                .map((div) => ({
+                  ...div,
+                  departments: store.departments
+                    .filter((dept) => dept.divisionId === div.id)
+                    .map((dept) => ({
+                      ...dept,
+                      costCenters: store.costCenters.filter((cc) => cc.departmentId === dept.id),
+                    })),
+                })),
             })),
         })),
     })),
+    // Backward compatibility: flat views
+    enterprises: store.enterprises,
     costCenters: store.costCenters,
     doaAuthorityLevels: store.doaAuthorityLevels,
     doaApprovalMatrix: store.doaApprovalMatrix,
@@ -1571,11 +1817,15 @@ export function getHierarchy() {
 }
 
 export function addHierarchyNode(data: {
-  type: "enterprise" | "company" | "division" | "department" | "costCenter";
+  type: "bank" | "program" | "enterprise" | "company" | "division" | "department" | "costCenter";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   record: any;
 }) {
   switch (data.type) {
+    case "bank":
+      return addBankInstitution(data.record);
+    case "program":
+      return addProgram(data.record);
     case "enterprise":
       return addEnterprise(data.record);
     case "company":
@@ -1591,7 +1841,7 @@ export function addHierarchyNode(data: {
 
 export function bulkImportHierarchy(
   items: {
-    type: "enterprise" | "company" | "division" | "department" | "costCenter";
+    type: "bank" | "program" | "enterprise" | "company" | "division" | "department" | "costCenter";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     record: any;
   }[]
@@ -1673,6 +1923,27 @@ export function getStats(): DashboardStats {
     ? Math.round((reversedCount / store.transactions.length) * 1000) / 10
     : 0;
 
+  // Last month spend for trend calculation
+  const lastMonthStart = new Date(currentYear, currentMonth - 1, 1);
+  const lastMonthEnd = new Date(currentYear, currentMonth, 0);
+  const lastMonthTxns = store.transactions.filter((t) => {
+    const d = new Date(t.timestamp);
+    return d >= lastMonthStart && d <= lastMonthEnd;
+  });
+  const totalSpendLastMonth = lastMonthTxns.reduce((sum, t) => sum + t.amount, 0);
+  const spendTrendPercent = totalSpendLastMonth > 0
+    ? Math.round(((totalSpendMTD - totalSpendLastMonth) / totalSpendLastMonth) * 1000) / 10
+    : 0;
+
+  // Overdue approvals (pending > 3 days)
+  const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+  const overdueApprovals = store.approvals.filter((a) => {
+    if (a.status !== "PENDING") return false;
+    if (!a.submittedAt) return false;
+    const submitted = new Date(a.submittedAt);
+    return submitted < threeDaysAgo;
+  }).length;
+
   return {
     totalSpendMTD: Math.round(totalSpendMTD),
     totalSpendYTD: Math.round(totalSpendYTD),
@@ -1688,6 +1959,9 @@ export function getStats(): DashboardStats {
     totalTransactionsMTD,
     avgTransactionValue,
     disputeRate,
+    spendTrendPercent,
+    totalSpendLastMonth: Math.round(totalSpendLastMonth),
+    overdueApprovals,
   };
 }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCards, addCard } from "@/lib/store";
+import { getCards } from "@/lib/store";
+import { getCardService } from "@/lib/card-integration";
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,8 +33,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const card = addCard(body);
-    return NextResponse.json({ data: card }, { status: 201 });
+    const service = getCardService();
+    const result = await service.issueCard({
+      employeeId: body.employeeId,
+      type: body.type || "VIRTUAL",
+      network: body.network,
+      spendLimits: body.spendLimits,
+      controls: body.controls,
+    });
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ data: result.card, message: result.message }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to create card", details: error instanceof Error ? error.message : "Unknown error" },

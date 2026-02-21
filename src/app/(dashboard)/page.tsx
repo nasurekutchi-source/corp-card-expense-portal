@@ -9,7 +9,8 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { formatINRCompact, formatDate, getFY } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
-import { useUserRole, canSeeWidget, defaultModuleConfig, isEmployeeRole } from "@/lib/role-access";
+import { useUserRole, canSeeWidget, isEmployeeRole } from "@/lib/role-access";
+import { useModuleConfig } from "@/components/providers/module-config-provider";
 import {
   getStats,
   getAnalytics,
@@ -97,7 +98,7 @@ function HorizontalBar({ label, value, max, color }: { label: string; value: num
 // ==================== EMPLOYEE DASHBOARD ====================
 function EmployeeDashboard() {
   const data = getEmployeeDashboard("emp-5");
-  const mc = defaultModuleConfig;
+  const { config: mc } = useModuleConfig();
 
   return (
     <div className="space-y-6 animate-in">
@@ -233,7 +234,7 @@ function EmployeeDashboard() {
 // ==================== ADMIN/MANAGER DASHBOARD ====================
 function AdminDashboard() {
   const { role } = useUserRole();
-  const mc = defaultModuleConfig;
+  const { config: mc } = useModuleConfig();
   const dashboardStats = getStats();
   const analytics = getAnalytics();
   const spendByCategory = analytics.spendByCategory;
@@ -268,8 +269,14 @@ function AdminDashboard() {
                   <p className="text-xs text-muted-foreground font-medium">Spend MTD</p>
                   <CurrencyDisplay amount={dashboardStats.totalSpendMTD} compact className="text-2xl font-bold" />
                   <div className="flex items-center gap-1 mt-1">
-                    <TrendingUp className="w-3 h-3 text-emerald-500" />
-                    <span className="text-xs text-emerald-500">+12.5%</span>
+                    {dashboardStats.spendTrendPercent >= 0 ? (
+                      <TrendingUp className="w-3 h-3 text-emerald-500" />
+                    ) : (
+                      <TrendingDown className="w-3 h-3 text-red-500" />
+                    )}
+                    <span className={`text-xs ${dashboardStats.spendTrendPercent >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                      {dashboardStats.spendTrendPercent >= 0 ? "+" : ""}{dashboardStats.spendTrendPercent}%
+                    </span>
                     <span className="text-xs text-muted-foreground">vs last month</span>
                   </div>
                 </div>
@@ -325,10 +332,12 @@ function AdminDashboard() {
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Pending Approvals</p>
                   <p className="text-2xl font-bold">{dashboardStats.pendingApprovals}</p>
-                  <div className="flex items-center gap-1 mt-1">
-                    <TrendingDown className="w-3 h-3 text-amber-500" />
-                    <span className="text-xs text-amber-500">3 overdue</span>
-                  </div>
+                  {dashboardStats.overdueApprovals > 0 && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <TrendingDown className="w-3 h-3 text-amber-500" />
+                      <span className="text-xs text-amber-500">{dashboardStats.overdueApprovals} overdue</span>
+                    </div>
+                  )}
                 </div>
                 <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
                   <CheckSquare className="w-5 h-5 text-amber-500" />

@@ -11,6 +11,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
 import { getTransactions } from "@/lib/store";
+import { useModuleConfig } from "@/components/providers/module-config-provider";
 import { formatINR, formatDate } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -33,6 +34,7 @@ import {
 
 export default function TransactionDetailPage({ params }: { params: Promise<{ txnId: string }> }) {
   const { txnId } = use(params);
+  const { config: mc } = useModuleConfig();
   const transactions = getTransactions();
   const txn = transactions.find((t) => t.id === txnId) || transactions[0];
 
@@ -259,12 +261,12 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ tx
                   { label: "Notification sent", time: txn.timestamp, status: "done" },
                   { label: "Receipt captured", time: txn.hasReceipt ? txn.timestamp : null, status: txn.hasReceipt ? "done" : "pending" },
                   { label: "Settlement", time: txn.status === "SETTLED" ? txn.timestamp : null, status: txn.status === "SETTLED" ? "done" : "pending" },
-                  { label: "Expense created", time: null, status: "pending" },
-                ].map((step, i) => (
+                  ...(mc.expenseManagement ? [{ label: "Expense created", time: null, status: "pending" }] : []),
+                ].map((step, i, arr) => (
                   <div key={i} className="flex gap-3">
                     <div className="flex flex-col items-center">
                       <div className={`w-2.5 h-2.5 rounded-full ${step.status === "done" ? "bg-emerald-500" : "bg-muted"}`} />
-                      {i < 4 && <div className="w-px h-full bg-border" />}
+                      {i < arr.length - 1 && <div className="w-px h-full bg-border" />}
                     </div>
                     <div className="pb-3">
                       <p className={`text-xs font-medium ${step.status === "done" ? "" : "text-muted-foreground"}`}>{step.label}</p>
@@ -286,17 +288,31 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ tx
               <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
+              {mc.expenseManagement && (
+                <>
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Receipt className="w-3.5 h-3.5 mr-2" />
+                    Create Expense
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Tag className="w-3.5 h-3.5 mr-2" />
+                    Categorize
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <FileText className="w-3.5 h-3.5 mr-2" />
+                    Add to Report
+                  </Button>
+                </>
+              )}
               <Button variant="outline" size="sm" className="w-full justify-start">
-                <Receipt className="w-3.5 h-3.5 mr-2" />
-                Create Expense
+                <CreditCard className="w-3.5 h-3.5 mr-2" />
+                View Card
               </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Tag className="w-3.5 h-3.5 mr-2" />
-                Categorize
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <FileText className="w-3.5 h-3.5 mr-2" />
-                Add to Report
+              <Button variant="outline" size="sm" className="w-full justify-start" asChild>
+                <Link href="/transactions">
+                  <FileText className="w-3.5 h-3.5 mr-2" />
+                  All Transactions
+                </Link>
               </Button>
             </CardContent>
           </Card>
