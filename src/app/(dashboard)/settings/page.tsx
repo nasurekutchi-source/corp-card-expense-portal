@@ -1,17 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/shared/page-header";
 import { APP_NAME, DEMO_USERS, ROLE_LABELS } from "@/lib/constants";
 import {
-  Settings,
   Building2,
   Users,
   Layers,
@@ -20,7 +17,6 @@ import {
   Globe,
   Bell,
   Shield,
-  Key,
   Mail,
   Save,
   ChevronRight,
@@ -30,6 +26,13 @@ import {
   Receipt,
   Bot,
   FileText,
+  Database,
+  Server,
+  Webhook,
+  FileUp,
+  ArrowRightLeft,
+  Clock,
+  CheckCircle,
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -274,47 +277,183 @@ export default function SettingsPage() {
         </TabsContent>
 
         {/* Integrations */}
-        <TabsContent value="integrations" className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {[
-              { name: "Oracle ERP", desc: "AP journal export to Oracle ERP Cloud", status: "Connected", icon: Building2 },
-              { name: "Tally", desc: "Export vouchers to Tally Prime", status: "Available", icon: FileText },
-              { name: "SAP", desc: "SAP S/4HANA integration via IDoc", status: "Available", icon: Layers },
-              { name: "Microsoft Teams", desc: "Submit & approve expenses in Teams", status: "Connected", icon: Users },
-              { name: "Slack", desc: "Notifications and approval actions", status: "Available", icon: Bell },
-              { name: "HRMS (SuccessFactors)", desc: "Employee data sync", status: "Available", icon: Users },
-              { name: "Card Network (MC CDF)", desc: "Mastercard CDF 3.0 data feed", status: "Connected", icon: CreditCard },
-              { name: "Card Network (Visa VCF)", desc: "Visa VCF 4.0 data feed", status: "Connected", icon: CreditCard },
-            ].map((integration) => (
-              <Card key={integration.name} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <integration.icon className="w-5 h-5 text-primary" />
+        <TabsContent value="integrations" className="space-y-6">
+          {/* TSYS PRIME — Card Management System */}
+          <Card className="border-blue-200 dark:border-blue-900">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+                    <Server className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-sm font-medium">TSYS PRIME</CardTitle>
+                    <CardDescription className="text-xs">Card Management System — Authorization, Settlement, Statements</CardDescription>
+                  </div>
+                </div>
+                <Badge variant="success" className="text-[9px]">Connected</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Real-Time Integration */}
+                <div className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Webhook className="w-4 h-4 text-emerald-500" />
+                    <p className="text-xs font-medium">Real-Time (Webhook)</p>
+                    <Badge variant="success" className="text-[8px] ml-auto">Active</Badge>
+                  </div>
+                  <div className="space-y-1 text-[11px] text-muted-foreground">
+                    <div className="flex justify-between">
+                      <span>Authorization events</span>
+                      <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" />Live</span>
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm">{integration.name}</p>
-                        <Badge
-                          variant={integration.status === "Connected" ? "success" : "outline"}
-                          className="text-[9px]"
-                        >
-                          {integration.status}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{integration.desc}</p>
-                      <Button
-                        variant={integration.status === "Connected" ? "outline" : "default"}
-                        size="sm"
-                        className="mt-2 h-7 text-xs"
-                      >
-                        {integration.status === "Connected" ? "Configure" : "Connect"}
-                      </Button>
+                    <div className="flex justify-between">
+                      <span>Decline notifications</span>
+                      <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" />Live</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Card status changes</span>
+                      <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" />Live</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Fraud alerts</span>
+                      <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" />Live</span>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                  <div className="text-[10px] text-muted-foreground border-t pt-2 flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> Last event: 2 minutes ago
+                  </div>
+                </div>
+                {/* Batch Integration */}
+                <div className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <FileUp className="w-4 h-4 text-blue-500" />
+                    <p className="text-xs font-medium">Batch (File Import)</p>
+                    <Badge variant="success" className="text-[8px] ml-auto">Active</Badge>
+                  </div>
+                  <div className="space-y-1 text-[11px] text-muted-foreground">
+                    <div className="flex justify-between">
+                      <span>Settlement file (daily)</span>
+                      <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" />OK</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Statement file (monthly)</span>
+                      <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" />OK</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Chargeback file (daily)</span>
+                      <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" />OK</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Card inventory file (weekly)</span>
+                      <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" />OK</span>
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground border-t pt-2 flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> Last batch: Today 06:00 AM IST
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="h-7 text-xs">
+                  <ArrowRightLeft className="w-3 h-3" />
+                  Test Connection
+                </Button>
+                <Button variant="outline" size="sm" className="h-7 text-xs">Configure Endpoints</Button>
+                <Button variant="outline" size="sm" className="h-7 text-xs">View Logs</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Oracle EBS — AP Connectivity */}
+          <Card className="border-orange-200 dark:border-orange-900">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center">
+                    <Database className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-sm font-medium">Oracle E-Business Suite (EBS)</CardTitle>
+                    <CardDescription className="text-xs">AP Connectivity — Invoice Import, Payment Export, GL Journal</CardDescription>
+                  </div>
+                </div>
+                <Badge variant="success" className="text-[9px]">Connected</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  { label: "AP Invoice Import", desc: "Expense reports → AP invoices", status: "Active", lastSync: "1 hour ago" },
+                  { label: "Payment Export", desc: "Reimbursements → AP payments", status: "Active", lastSync: "2 hours ago" },
+                  { label: "GL Journal Export", desc: "Cost center → GL account mapping", status: "Active", lastSync: "Daily 11PM" },
+                ].map((flow) => (
+                  <div key={flow.label} className="border rounded-lg p-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium">{flow.label}</p>
+                      <Badge variant="success" className="text-[8px]">{flow.status}</Badge>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">{flow.desc}</p>
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5" /> Last sync: {flow.lastSync}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="h-7 text-xs">
+                  <ArrowRightLeft className="w-3 h-3" />
+                  Test Connection
+                </Button>
+                <Button variant="outline" size="sm" className="h-7 text-xs">Field Mapping</Button>
+                <Button variant="outline" size="sm" className="h-7 text-xs">View Sync History</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Other Integrations */}
+          <div>
+            <h3 className="text-sm font-medium mb-3">Other Integrations</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                { name: "Card Network (MC CDF)", desc: "Mastercard CDF 3.0 data feed", status: "Connected", icon: CreditCard },
+                { name: "Card Network (Visa VCF)", desc: "Visa VCF 4.0 data feed", status: "Connected", icon: CreditCard },
+                { name: "Microsoft Teams", desc: "Submit & approve expenses in Teams", status: "Connected", icon: Users },
+                { name: "Tally Prime", desc: "Export vouchers to Tally Prime", status: "Available", icon: FileText },
+                { name: "Slack", desc: "Notifications and approval actions", status: "Available", icon: Bell },
+                { name: "HRMS (SuccessFactors)", desc: "Employee data sync", status: "Available", icon: Users },
+              ].map((integration) => (
+                <Card key={integration.name} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <integration.icon className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm">{integration.name}</p>
+                          <Badge
+                            variant={integration.status === "Connected" ? "success" : "outline"}
+                            className="text-[9px]"
+                          >
+                            {integration.status}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{integration.desc}</p>
+                        <Button
+                          variant={integration.status === "Connected" ? "outline" : "default"}
+                          size="sm"
+                          className="mt-2 h-7 text-xs"
+                        >
+                          {integration.status === "Connected" ? "Configure" : "Connect"}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </TabsContent>
 

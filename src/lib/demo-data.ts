@@ -287,6 +287,37 @@ export const topSpenders = [
   { name: "Deepa Nair", department: "Product Development", amount: 520000 },
 ];
 
+// ==================== HIERARCHY SPEND (by department) ====================
+export const hierarchySpend = [
+  { name: "Sales & Marketing", division: "Corporate Banking", spend: 890000, limit: 1500000, cards: 4, color: "#3b82f6" },
+  { name: "Operations", division: "Corporate Banking", spend: 650000, limit: 1000000, cards: 3, color: "#8b5cf6" },
+  { name: "Credit Analysis", division: "Corporate Banking", spend: 420000, limit: 800000, cards: 2, color: "#06b6d4" },
+  { name: "Branch Banking", division: "Retail Banking", spend: 580000, limit: 1200000, cards: 3, color: "#f97316" },
+  { name: "Product Development", division: "Technology", spend: 520000, limit: 1500000, cards: 4, color: "#22c55e" },
+  { name: "Infrastructure", division: "Technology", spend: 380000, limit: 1000000, cards: 2, color: "#ec4899" },
+  { name: "Equity Research", division: "Investment Banking", spend: 720000, limit: 2000000, cards: 3, color: "#7c3aed" },
+  { name: "Risk Management", division: "Investment Banking", spend: 240000, limit: 800000, cards: 1, color: "#64748b" },
+];
+
+// ==================== EMPLOYEE-SPECIFIC DATA ====================
+export const employeeDashboardData = {
+  myCards: [
+    { last4: "1009", type: "PHYSICAL", network: "VISA", status: "ACTIVE", limit: 500000, spent: 182000, available: 318000 },
+    { last4: "1010", type: "VIRTUAL", network: "MASTERCARD", status: "ACTIVE", limit: 200000, spent: 45000, available: 155000 },
+  ],
+  myRecentTransactions: [
+    { merchant: "Swiggy", amount: 1250, date: "2026-02-21", status: "SETTLED", hasReceipt: true },
+    { merchant: "Uber India", amount: 890, date: "2026-02-20", status: "SETTLED", hasReceipt: false },
+    { merchant: "Amazon India", amount: 15600, date: "2026-02-19", status: "SETTLED", hasReceipt: true },
+    { merchant: "WeWork India", amount: 8500, date: "2026-02-18", status: "SETTLED", hasReceipt: true },
+    { merchant: "Starbucks India", amount: 650, date: "2026-02-17", status: "SETTLED", hasReceipt: false },
+  ],
+  missingReceipts: 3,
+  pendingExpenses: 2,
+  totalSpendMTD: 182000,
+  totalSpendLastMonth: 165000,
+};
+
 // ==================== DASHBOARD STATS ====================
 export const dashboardStats = {
   totalSpendMTD: 3400000,
@@ -296,7 +327,9 @@ export const dashboardStats = {
   pendingApprovals: 8,
   policyComplianceScore: 87,
   totalEmployees: 10,
-  budgetUtilized: 68,
+  cardLimitTotal: 10000000,
+  cardLimitUtilized: 6800000,
+  limitUtilizationPercent: 68,
   expenseModuleEnabled: true,
   totalTransactionsMTD: 142,
   avgTransactionValue: 23943,

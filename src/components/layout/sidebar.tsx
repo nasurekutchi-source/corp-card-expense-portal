@@ -4,10 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME, ROLE_LABELS, type UserRole } from "@/lib/constants";
+import { useUserRole, canAccessNav, defaultModuleConfig, type NavSection } from "@/lib/role-access";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import {
   CreditCard,
@@ -20,22 +20,22 @@ import {
   Shield,
   Settings,
   BarChart3,
-  Wallet,
   GitBranch,
   Bot,
   ChevronLeft,
   ChevronRight,
-  Building2,
   ArrowRightLeft,
   Banknote,
   Scale,
   Layers,
+  SlidersHorizontal,
 } from "lucide-react";
 
 interface NavItem {
   label: string;
   href: string;
   icon: React.ElementType;
+  section: NavSection;
   badge?: string | number;
   badgeVariant?: "default" | "destructive" | "warning" | "success";
 }
@@ -45,58 +45,111 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const navGroups: NavGroup[] = [
-  {
-    label: "Overview",
-    items: [
-      { label: "Dashboard", href: "/", icon: LayoutDashboard },
-    ],
-  },
-  {
-    label: "Card Portal",
-    items: [
-      { label: "Hierarchy", href: "/hierarchy", icon: Network },
-      { label: "Employees", href: "/employees", icon: Users },
-      { label: "Cards", href: "/cards", icon: CreditCard },
-      { label: "Transactions", href: "/transactions", icon: ArrowRightLeft },
-    ],
-  },
-  {
-    label: "Expense Management",
-    items: [
-      { label: "Expenses", href: "/expenses", icon: Receipt },
-      { label: "Expense Reports", href: "/expense-reports", icon: FileText },
-      { label: "Approvals", href: "/approvals", icon: CheckSquare, badge: 8, badgeVariant: "destructive" },
-      { label: "Policies", href: "/policies", icon: Shield },
-      { label: "DOA Config", href: "/doa", icon: Scale },
-      { label: "Reimbursements", href: "/reimbursements", icon: Banknote },
-    ],
-  },
-  {
-    label: "Intelligent Service",
-    items: [
-      { label: "AI Assistant", href: "/ai-assistant", icon: Bot },
-    ],
-  },
-  {
-    label: "Reports & Analytics",
-    items: [
-      { label: "Reports", href: "/reports", icon: BarChart3 },
-    ],
-  },
-  {
-    label: "Administration",
-    items: [
-      { label: "Settings", href: "/settings", icon: Settings },
-      { label: "Integrations", href: "/settings/integrations", icon: Layers },
-      { label: "Audit Trail", href: "/settings/audit", icon: GitBranch },
-    ],
-  },
-];
+function getNavGroups(role: UserRole): NavGroup[] {
+  const mc = defaultModuleConfig;
+
+  // Employee/Cardholder — personal navigation only
+  if (role === "EMPLOYEE") {
+    const groups: NavGroup[] = [
+      {
+        label: "Overview",
+        items: [
+          { label: "My Dashboard", href: "/", icon: LayoutDashboard, section: "dashboard" },
+        ],
+      },
+      {
+        label: "My Cards",
+        items: [
+          { label: "My Cards", href: "/cards", icon: CreditCard, section: "my_cards" },
+          { label: "My Transactions", href: "/transactions", icon: ArrowRightLeft, section: "my_transactions" },
+        ],
+      },
+    ];
+
+    if (mc.expenseManagement) {
+      groups.push({
+        label: "My Expenses",
+        items: [
+          { label: "My Expenses", href: "/expenses", icon: Receipt, section: "my_expenses" },
+          { label: "My Reports", href: "/expense-reports", icon: FileText, section: "my_statements" },
+        ],
+      });
+    }
+
+    return groups;
+  }
+
+  // All other roles
+  const groups: NavGroup[] = [
+    {
+      label: "Overview",
+      items: [
+        { label: "Dashboard", href: "/", icon: LayoutDashboard, section: "dashboard" },
+      ],
+    },
+  ];
+
+  // Card Portal
+  const cardItems: NavItem[] = [];
+  if (canAccessNav(role, "hierarchy", mc))
+    cardItems.push({ label: "Hierarchy", href: "/hierarchy", icon: Network, section: "hierarchy" });
+  if (canAccessNav(role, "employees", mc))
+    cardItems.push({ label: "Employees", href: "/employees", icon: Users, section: "employees" });
+  if (canAccessNav(role, "cards", mc))
+    cardItems.push({ label: "Cards", href: "/cards", icon: CreditCard, section: "cards" });
+  if (canAccessNav(role, "card_controls", mc))
+    cardItems.push({ label: "Card Controls", href: "/cards/new", icon: SlidersHorizontal, section: "card_controls" });
+  if (canAccessNav(role, "transactions", mc))
+    cardItems.push({ label: "Transactions", href: "/transactions", icon: ArrowRightLeft, section: "transactions" });
+  if (cardItems.length > 0)
+    groups.push({ label: "Card Portal", items: cardItems });
+
+  // Expense Management (only if enabled)
+  if (mc.expenseManagement) {
+    const expItems: NavItem[] = [];
+    if (canAccessNav(role, "expenses", mc))
+      expItems.push({ label: "Expenses", href: "/expenses", icon: Receipt, section: "expenses" });
+    if (canAccessNav(role, "expense_reports", mc))
+      expItems.push({ label: "Expense Reports", href: "/expense-reports", icon: FileText, section: "expense_reports" });
+    if (canAccessNav(role, "approvals", mc))
+      expItems.push({ label: "Approvals", href: "/approvals", icon: CheckSquare, section: "approvals", badge: role !== "AUDITOR" ? 8 : undefined, badgeVariant: "destructive" });
+    if (canAccessNav(role, "policies", mc))
+      expItems.push({ label: "Policies", href: "/policies", icon: Shield, section: "policies" });
+    if (canAccessNav(role, "doa", mc))
+      expItems.push({ label: "DOA Config", href: "/doa", icon: Scale, section: "doa" });
+    if (canAccessNav(role, "reimbursements", mc))
+      expItems.push({ label: "Reimbursements", href: "/reimbursements", icon: Banknote, section: "reimbursements" });
+    if (expItems.length > 0)
+      groups.push({ label: "Expense Management", items: expItems });
+  }
+
+  // Intelligent Service
+  if (canAccessNav(role, "ai_assistant", mc))
+    groups.push({ label: "Intelligent Service", items: [{ label: "AI Assistant", href: "/ai-assistant", icon: Bot, section: "ai_assistant" }] });
+
+  // Reports
+  if (canAccessNav(role, "reports", mc))
+    groups.push({ label: "Reports & Analytics", items: [{ label: "Reports", href: "/reports", icon: BarChart3, section: "reports" }] });
+
+  // Administration
+  const adminItems: NavItem[] = [];
+  if (canAccessNav(role, "settings", mc))
+    adminItems.push({ label: "Settings", href: "/settings", icon: Settings, section: "settings" });
+  if (canAccessNav(role, "integrations", mc))
+    adminItems.push({ label: "Integrations", href: "/settings/integrations", icon: Layers, section: "integrations" });
+  if (canAccessNav(role, "audit_trail", mc))
+    adminItems.push({ label: "Audit Trail", href: "/settings/audit", icon: GitBranch, section: "audit_trail" });
+  if (adminItems.length > 0)
+    groups.push({ label: "Administration", items: adminItems });
+
+  return groups;
+}
 
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const { role } = useUserRole();
+  const navGroups = getNavGroups(role);
 
   return (
     <aside
@@ -118,6 +171,15 @@ export function Sidebar() {
         )}
       </div>
 
+      {/* Role badge */}
+      {!collapsed && (
+        <div className="px-4 py-2 border-b border-sidebar-border">
+          <Badge variant="outline" className="text-[9px] text-sidebar-foreground/60 border-sidebar-border w-full justify-center">
+            {ROLE_LABELS[role] || role}
+          </Badge>
+        </div>
+      )}
+
       {/* Navigation */}
       <ScrollArea className="flex-1 px-2 py-2">
         <nav className="space-y-4">
@@ -132,11 +194,11 @@ export function Sidebar() {
                 {group.items.map((item) => {
                   const isActive =
                     pathname === item.href ||
-                    (item.href !== "/" && pathname.startsWith(item.href));
+                    (item.href !== "/" && pathname?.startsWith(item.href));
 
                   return (
                     <Link
-                      key={item.href}
+                      key={item.href + item.section}
                       href={item.href}
                       className={cn(
                         "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",

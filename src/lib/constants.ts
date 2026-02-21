@@ -139,4 +139,5 @@ export const DEMO_USERS = [
   { email: "finance@corpcardpro.com", password: "finance123", role: "FINANCE_CONTROLLER", name: "Arun Patel" },
   { email: "manager@corpcardpro.com", password: "manager123", role: "DEPT_MANAGER", name: "Deepa Nair" },
   { email: "employee@corpcardpro.com", password: "employee123", role: "EMPLOYEE", name: "Vikram Singh" },
+  { email: "auditor@corpcardpro.com", password: "auditor123", role: "AUDITOR", name: "Kavitha Reddy" },
 ];
