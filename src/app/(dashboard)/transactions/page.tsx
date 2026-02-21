@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
-import { demoTransactions } from "@/lib/demo-data";
+import { getTransactions } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
 import {
   Search,
@@ -98,7 +98,7 @@ export default function TransactionsPage() {
   };
 
   const filteredTxns = useMemo(() => {
-    return demoTransactions.filter((txn) => {
+    return getTransactions().filter((txn) => {
       const matchesSearch =
         !searchQuery ||
         txn.merchantName.toLowerCase().includes(searchQuery.toLowerCase()) ||

@@ -10,14 +10,12 @@ import { Progress } from "@/components/ui/progress";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
 import {
-  spendByCategory,
-  spendByMonth,
-  topSpenders,
-  dashboardStats,
-  demoDepartments,
-  demoCostCenters,
-  demoCompanies,
-} from "@/lib/demo-data";
+  getAnalytics,
+  getStats,
+  getDepartments,
+  getCostCenters,
+  getCompanies,
+} from "@/lib/store";
 import { formatINRCompact } from "@/lib/utils";
 import {
   BarChart3,
@@ -103,14 +101,20 @@ function DonutViz({ data }: { data: { name: string; value: number; color: string
 }
 
 export default function ReportsPage() {
-  const deptSpend = demoDepartments.slice(0, 6).map((dept) => ({
+  const analytics = getAnalytics();
+  const stats = getStats();
+  const departments = getDepartments();
+  const costCenters = getCostCenters();
+  const companies = getCompanies();
+
+  const deptSpend = departments.slice(0, 6).map((dept, idx) => ({
     label: dept.name,
     value: dept.budget * (0.3 + Math.random() * 0.5),
     budget: dept.budget,
-    color: ["#3b82f6", "#8b5cf6", "#f97316", "#06b6d4", "#22c55e", "#ec4899"][demoDepartments.indexOf(dept) % 6],
+    color: ["#3b82f6", "#8b5cf6", "#f97316", "#06b6d4", "#22c55e", "#ec4899"][idx % 6],
   }));
 
-  const gstData = demoCompanies.map((comp) => ({
+  const gstData = companies.map((comp) => ({
     company: comp.name,
     gstin: comp.gstin,
     cgst: Math.round(Math.random() * 500000),
@@ -145,19 +149,19 @@ export default function ReportsPage() {
             <Card>
               <CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground">YTD Spend</p>
-                <CurrencyDisplay amount={dashboardStats.totalSpendYTD} compact className="text-2xl font-bold" />
+                <CurrencyDisplay amount={stats.totalSpendYTD} compact className="text-2xl font-bold" />
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground">MTD Spend</p>
-                <CurrencyDisplay amount={dashboardStats.totalSpendMTD} compact className="text-2xl font-bold" />
+                <CurrencyDisplay amount={stats.totalSpendMTD} compact className="text-2xl font-bold" />
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground">Avg per Transaction</p>
-                <CurrencyDisplay amount={dashboardStats.avgTransactionValue} className="text-2xl font-bold" />
+                <CurrencyDisplay amount={stats.avgTransactionValue} className="text-2xl font-bold" />
               </CardContent>
             </Card>
           </div>
@@ -171,7 +175,7 @@ export default function ReportsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <DonutViz data={spendByCategory} />
+                <DonutViz data={analytics.spendByCategory} />
               </CardContent>
             </Card>
 
@@ -184,7 +188,7 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent>
                 <BarChartViz
-                  data={spendByMonth.map((m) => ({
+                  data={analytics.spendByMonth.map((m) => ({
                     label: m.month,
                     value: m.amount,
                   }))}
@@ -220,7 +224,7 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {topSpenders.map((spender, i) => (
+                {analytics.topSpenders.map((spender, i) => (
                   <div key={spender.name} className="flex items-center gap-3">
                     <span className="text-sm font-bold text-muted-foreground w-6">{i + 1}.</span>
                     <div className="flex-1">
@@ -284,7 +288,7 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {demoCostCenters.map((cc) => {
+                {costCenters.map((cc) => {
                   const util = Math.round((cc.utilized / cc.budget) * 100);
                   return (
                     <div key={cc.id} className="flex items-center gap-4">

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { PageHeader } from "@/components/shared/page-header";
-import { demoEmployees, demoDepartments, demoCards } from "@/lib/demo-data";
+import { getEmployees, getDepartments, getCards } from "@/lib/store";
 import { getInitials } from "@/lib/utils";
 import {
   Users,
@@ -27,11 +27,15 @@ import {
 export default function EmployeesPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const employees = demoEmployees.map((emp) => ({
+  const allEmployees = getEmployees();
+  const allDepartments = getDepartments();
+  const allCards = getCards();
+
+  const employees = allEmployees.map((emp) => ({
     ...emp,
-    department: demoDepartments.find((d) => d.id === emp.departmentId)?.name || "",
-    cardCount: demoCards.filter((c) => c.employeeId === emp.id).length,
-    activeCards: demoCards.filter((c) => c.employeeId === emp.id && c.status === "ACTIVE").length,
+    department: allDepartments.find((d) => d.id === emp.departmentId)?.name || "",
+    cardCount: allCards.filter((c) => c.employeeId === emp.id).length,
+    activeCards: allCards.filter((c) => c.employeeId === emp.id && c.status === "ACTIVE").length,
   }));
 
   const filteredEmployees = employees.filter(

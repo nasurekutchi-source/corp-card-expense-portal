@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
-import { demoCards } from "@/lib/demo-data";
+import { getCards } from "@/lib/store";
 import {
   CreditCard,
   Plus,
@@ -29,7 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-function CardVisual({ card }: { card: (typeof demoCards)[0] }) {
+function CardVisual({ card }: { card: ReturnType<typeof getCards>[0] }) {
   const networkColors = {
     VISA: "from-blue-600 to-blue-800",
     MASTERCARD: "from-red-600 to-orange-600",
@@ -84,7 +84,9 @@ export default function CardsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  const filteredCards = demoCards.filter((card) => {
+  const cards = getCards();
+
+  const filteredCards = cards.filter((card) => {
     const matchesSearch =
       card.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       card.last4Digits.includes(searchQuery) ||
@@ -94,10 +96,10 @@ export default function CardsPage() {
   });
 
   const stats = {
-    total: demoCards.length,
-    active: demoCards.filter((c) => c.status === "ACTIVE").length,
-    frozen: demoCards.filter((c) => c.status === "FROZEN").length,
-    virtual: demoCards.filter((c) => c.type === "VIRTUAL").length,
+    total: cards.length,
+    active: cards.filter((c) => c.status === "ACTIVE").length,
+    frozen: cards.filter((c) => c.status === "FROZEN").length,
+    virtual: cards.filter((c) => c.type === "VIRTUAL").length,
   };
 
   return (

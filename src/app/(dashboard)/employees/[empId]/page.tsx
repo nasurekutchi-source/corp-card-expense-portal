@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
-import { demoEmployees, demoCards, demoTransactions, demoExpenses, demoDepartments, demoCostCenters } from "@/lib/demo-data";
+import { getEmployees, getCards, getTransactions, getExpenses, getDepartments, getCostCenters } from "@/lib/store";
 import { getInitials, formatDate, formatINRCompact } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -29,12 +29,18 @@ import {
 
 export default function EmployeeDetailPage({ params }: { params: Promise<{ empId: string }> }) {
   const { empId } = use(params);
-  const emp = demoEmployees.find((e) => e.id === empId) || demoEmployees[0];
-  const dept = demoDepartments.find((d) => d.id === emp.departmentId);
-  const cc = demoCostCenters.find((c) => c.id === emp.costCenterId);
-  const cards = demoCards.filter((c) => c.employeeId === emp.id);
-  const transactions = demoTransactions.filter((t) => t.employeeId === emp.id).slice(0, 10);
-  const expenses = demoExpenses.filter((e) => e.employeeId === emp.id).slice(0, 10);
+  const allEmployees = getEmployees();
+  const allDepartments = getDepartments();
+  const allCostCenters = getCostCenters();
+  const allCards = getCards();
+  const allTransactions = getTransactions();
+  const allExpenses = getExpenses();
+  const emp = allEmployees.find((e) => e.id === empId) || allEmployees[0];
+  const dept = allDepartments.find((d) => d.id === emp.departmentId);
+  const cc = allCostCenters.find((c) => c.id === emp.costCenterId);
+  const cards = allCards.filter((c) => c.employeeId === emp.id);
+  const transactions = allTransactions.filter((t) => t.employeeId === emp.id).slice(0, 10);
+  const expenses = allExpenses.filter((e) => e.employeeId === emp.id).slice(0, 10);
   const totalSpend = transactions.reduce((s, t) => s + t.amount, 0);
 
   return (

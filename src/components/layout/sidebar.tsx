@@ -29,6 +29,7 @@ import {
   Scale,
   Layers,
   SlidersHorizontal,
+  Database,
 } from "lucide-react";
 
 interface NavItem {
@@ -137,6 +138,8 @@ function getNavGroups(role: UserRole): NavGroup[] {
     adminItems.push({ label: "Settings", href: "/settings", icon: Settings, section: "settings" });
   if (canAccessNav(role, "integrations", mc))
     adminItems.push({ label: "Integrations", href: "/settings/integrations", icon: Layers, section: "integrations" });
+  if (canAccessNav(role, "data_management", mc))
+    adminItems.push({ label: "Data Management", href: "/settings/data-management", icon: Database, section: "data_management" });
   if (canAccessNav(role, "audit_trail", mc))
     adminItems.push({ label: "Audit Trail", href: "/settings/audit", icon: GitBranch, section: "audit_trail" });
   if (adminItems.length > 0)

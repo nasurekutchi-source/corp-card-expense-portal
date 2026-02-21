@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
-import { demoApprovals, demoExpenseReports } from "@/lib/demo-data";
+import { getApprovals, getExpenseReports } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
 import {
   CheckSquare,
@@ -26,8 +26,8 @@ import {
 export default function ApprovalsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const pendingApprovals = demoApprovals;
-  const recentlyApproved = demoExpenseReports.filter((r) => r.status === "APPROVED").slice(0, 5);
+  const pendingApprovals = getApprovals();
+  const recentlyApproved = getExpenseReports().filter((r) => r.status === "APPROVED").slice(0, 5);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) =>

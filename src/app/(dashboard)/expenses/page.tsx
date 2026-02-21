@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
-import { demoExpenses } from "@/lib/demo-data";
+import { getExpenses } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
 import {
   Receipt,
@@ -30,7 +30,9 @@ export default function ExpensesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
 
-  const filteredExpenses = demoExpenses.filter((exp) => {
+  const expenses = getExpenses();
+
+  const filteredExpenses = expenses.filter((exp) => {
     const matchesSearch =
       exp.merchantName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       exp.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -40,11 +42,11 @@ export default function ExpensesPage() {
   });
 
   const stats = {
-    total: demoExpenses.length,
-    compliant: demoExpenses.filter((e) => e.policyStatus === "COMPLIANT").length,
-    violations: demoExpenses.filter((e) => e.policyStatus !== "COMPLIANT").length,
-    totalAmount: demoExpenses.reduce((sum, e) => sum + e.amount, 0),
-    withReceipt: demoExpenses.filter((e) => e.hasReceipt).length,
+    total: expenses.length,
+    compliant: expenses.filter((e) => e.policyStatus === "COMPLIANT").length,
+    violations: expenses.filter((e) => e.policyStatus !== "COMPLIANT").length,
+    totalAmount: expenses.reduce((sum, e) => sum + e.amount, 0),
+    withReceipt: expenses.filter((e) => e.hasReceipt).length,
   };
 
   return (

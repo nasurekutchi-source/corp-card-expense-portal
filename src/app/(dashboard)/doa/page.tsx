@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/page-header";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
-import { doaAuthorityLevels, doaApprovalMatrix } from "@/lib/demo-data";
+import { getDoaAuthorityLevels, getDoaApprovalMatrix } from "@/lib/store";
 import { formatINRCompact } from "@/lib/utils";
 import {
   Scale,
@@ -40,6 +40,9 @@ const sodRules = [
 ];
 
 export default function DoaPage() {
+  const authorityLevels = getDoaAuthorityLevels();
+  const approvalMatrix = getDoaApprovalMatrix();
+
   return (
     <div className="space-y-6 animate-in">
       <PageHeader title="Delegation of Authority" description="Configure approval authority levels and delegation rules">
@@ -62,7 +65,7 @@ export default function DoaPage() {
                 <Layers className="w-4 h-4 text-primary" />
               </div>
               <div>
-                <p className="text-xl font-bold">{doaAuthorityLevels.length}</p>
+                <p className="text-xl font-bold">{authorityLevels.length}</p>
                 <p className="text-xs text-muted-foreground">Authority Levels</p>
               </div>
             </div>
@@ -75,7 +78,7 @@ export default function DoaPage() {
                 <Scale className="w-4 h-4 text-blue-500" />
               </div>
               <div>
-                <p className="text-xl font-bold">{doaApprovalMatrix.length}</p>
+                <p className="text-xl font-bold">{approvalMatrix.length}</p>
                 <p className="text-xs text-muted-foreground">Approval Rules</p>
               </div>
             </div>
@@ -119,7 +122,7 @@ export default function DoaPage() {
 
         {/* Authority Levels */}
         <TabsContent value="authority" className="space-y-3">
-          {doaAuthorityLevels.map((level, i) => (
+          {authorityLevels.map((level, i) => (
             <Card key={level.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-4">
                 <div className="flex items-center gap-4">
@@ -166,7 +169,7 @@ export default function DoaPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {doaApprovalMatrix.map((rule) => (
+                    {approvalMatrix.map((rule) => (
                       <tr key={rule.id} className="border-b last:border-0">
                         <td className="py-3 font-medium">₹{rule.amountRange}</td>
                         <td className="py-3">

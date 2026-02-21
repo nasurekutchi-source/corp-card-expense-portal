@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
-import { demoEmployees } from "@/lib/demo-data";
+import { getEmployees } from "@/lib/store";
 import {
   ArrowLeft,
   CreditCard,
@@ -104,7 +104,7 @@ export default function NewCardPage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-medium">Assign to Employee</label>
                 <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                  {demoEmployees.map((emp) => (
+                  {getEmployees().map((emp) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.firstName} {emp.lastName} ({emp.employeeNumber})
                     </option>

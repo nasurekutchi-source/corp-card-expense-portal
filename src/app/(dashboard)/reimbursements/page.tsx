@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
-import { demoExpenseReports, demoEmployees } from "@/lib/demo-data";
+import { getExpenseReports, getEmployees } from "@/lib/store";
 import { formatDate, formatINRCompact } from "@/lib/utils";
 import {
   Banknote,
@@ -24,10 +24,10 @@ import {
   Landmark,
 } from "lucide-react";
 
-const reimbursements = demoExpenseReports
+const reimbursements = getExpenseReports()
   .filter((r) => ["APPROVED", "PROCESSING", "PAID"].includes(r.status))
   .map((report, i) => {
-    const emp = demoEmployees.find((e) => e.id === report.employeeId);
+    const emp = getEmployees().find((e) => e.id === report.employeeId);
     const tdsRate = i % 3 === 0 ? 10 : 0;
     const tdsAmount = Math.round(report.totalAmount * (tdsRate / 100));
     const rStatus = report.status as string;
@@ -52,7 +52,7 @@ const reimbursements = demoExpenseReports
     };
   });
 
-const paymentProfiles = demoEmployees.slice(0, 5).map((emp, i) => ({
+const paymentProfiles = getEmployees().slice(0, 5).map((emp, i) => ({
   id: `pp-${i + 1}`,
   employeeName: `${emp.firstName} ${emp.lastName}`,
   employeeNumber: emp.employeeNumber,

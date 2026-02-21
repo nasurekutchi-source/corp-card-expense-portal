@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
-import { demoExpenses } from "@/lib/demo-data";
+import { getExpenses } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -24,7 +24,8 @@ import {
 
 export default function NewExpenseReportPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const unreported = demoExpenses.slice(0, 12);
+  const expenses = getExpenses();
+  const unreported = expenses.slice(0, 12);
   const selectedExpenses = unreported.filter((e) => selected.has(e.id));
   const totalAmount = selectedExpenses.reduce((s, e) => s + e.amount, 0);
   const violations = selectedExpenses.filter((e) => e.policyStatus !== "COMPLIANT").length;

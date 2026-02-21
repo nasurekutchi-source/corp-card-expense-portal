@@ -11,15 +11,12 @@ import { formatINRCompact, formatDate, getFY } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
 import { useUserRole, canSeeWidget, defaultModuleConfig, isEmployeeRole } from "@/lib/role-access";
 import {
-  dashboardStats,
-  spendByCategory,
-  spendByMonth,
-  topSpenders,
-  demoTransactions,
-  demoApprovals,
-  hierarchySpend,
-  employeeDashboardData,
-} from "@/lib/demo-data";
+  getStats,
+  getAnalytics,
+  getTransactions,
+  getApprovals,
+  getEmployeeDashboard,
+} from "@/lib/store";
 import {
   TrendingUp,
   TrendingDown,
@@ -99,7 +96,7 @@ function HorizontalBar({ label, value, max, color }: { label: string; value: num
 
 // ==================== EMPLOYEE DASHBOARD ====================
 function EmployeeDashboard() {
-  const data = employeeDashboardData;
+  const data = getEmployeeDashboard("emp-5");
   const mc = defaultModuleConfig;
 
   return (
@@ -237,7 +234,13 @@ function EmployeeDashboard() {
 function AdminDashboard() {
   const { role } = useUserRole();
   const mc = defaultModuleConfig;
-  const recentTxns = demoTransactions.slice(0, 5);
+  const dashboardStats = getStats();
+  const analytics = getAnalytics();
+  const spendByCategory = analytics.spendByCategory;
+  const spendByMonth = analytics.spendByMonth;
+  const topSpenders = analytics.topSpenders;
+  const hierarchySpend = analytics.hierarchySpend;
+  const recentTxns = getTransactions().slice(0, 5);
 
   const showExpense = mc.expenseManagement;
   const showWidget = (w: Parameters<typeof canSeeWidget>[1]) => canSeeWidget(role, w, mc);
@@ -475,7 +478,7 @@ function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {demoApprovals.slice(0, 3).map((appr) => (
+                  {getApprovals().slice(0, 3).map((appr) => (
                     <div key={appr.id} className="flex items-center justify-between py-1">
                       <div>
                         <p className="text-sm font-medium">{appr.reportNumber}</p>

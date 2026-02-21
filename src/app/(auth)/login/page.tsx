@@ -28,29 +28,42 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doLogin = async (loginEmail: string, loginPassword: string) => {
     setLoading(true);
     setError("");
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn("credentials", {
+        email: loginEmail,
+        password: loginPassword,
+        redirect: false,
+      });
 
-    if (result?.error) {
-      setError("Invalid email or password");
+      if (result?.error) {
+        setError("Invalid email or password. Please try again.");
+        setLoading(false);
+      } else if (result?.ok) {
+        router.push("/");
+        router.refresh();
+      } else {
+        setError("Login failed. Please try again.");
+        setLoading(false);
+      }
+    } catch {
+      setError("Connection error. Please try again.");
       setLoading(false);
-    } else {
-      router.push("/");
-      router.refresh();
     }
   };
 
-  const quickLogin = (user: (typeof DEMO_USERS)[0]) => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await doLogin(email, password);
+  };
+
+  const quickLogin = async (user: (typeof DEMO_USERS)[0]) => {
     setEmail(user.email);
     setPassword(user.password);
+    await doLogin(user.email, user.password);
   };
 
   return (

@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
-import { demoCards, demoTransactions } from "@/lib/demo-data";
+import { getCards, getTransactions } from "@/lib/store";
 import { formatINR, formatINRCompact, formatDate } from "@/lib/utils";
 import {
   CreditCard,
@@ -31,7 +31,7 @@ import {
   Trash2,
 } from "lucide-react";
 
-function CardVisual3D({ card }: { card: typeof demoCards[0] }) {
+function CardVisual3D({ card }: { card: ReturnType<typeof getCards>[0] }) {
   const gradients: Record<string, string> = {
     VISA: "from-blue-900 via-blue-800 to-blue-600",
     MASTERCARD: "from-gray-900 via-gray-800 to-red-900",
@@ -75,8 +75,10 @@ function CardVisual3D({ card }: { card: typeof demoCards[0] }) {
 
 export default function CardDetailPage({ params }: { params: Promise<{ cardId: string }> }) {
   const { cardId } = use(params);
-  const card = demoCards.find((c) => c.id === cardId) || demoCards[0];
-  const transactions = demoTransactions.filter((t) => t.cardId === card.id).slice(0, 15);
+  const cards = getCards();
+  const allTransactions = getTransactions();
+  const card = cards.find((c) => c.id === cardId) || cards[0];
+  const transactions = allTransactions.filter((t) => t.cardId === card.id).slice(0, 15);
   const isFrozen = card.status === "FROZEN";
 
   return (

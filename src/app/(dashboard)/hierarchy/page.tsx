@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
 import { Progress } from "@/components/ui/progress";
-import { demoEnterprises, demoCompanies, demoDivisions, demoDepartments, demoCostCenters } from "@/lib/demo-data";
+import { getEnterprises, getCompanies, getDivisions, getDepartments, getCostCenters } from "@/lib/store";
 import { formatINRCompact } from "@/lib/utils";
 import {
   Network,
@@ -36,18 +36,24 @@ interface TreeNode {
 }
 
 function buildTree(): TreeNode[] {
-  return demoEnterprises.map((ent) => ({
+  const enterprises = getEnterprises();
+  const companies = getCompanies();
+  const divisions = getDivisions();
+  const departments = getDepartments();
+  const costCenters = getCostCenters();
+
+  return enterprises.map((ent) => ({
     id: ent.id,
     name: ent.name,
     type: "enterprise" as const,
-    children: demoCompanies
+    children: companies
       .filter((c) => c.enterpriseId === ent.id)
       .map((comp) => ({
         id: comp.id,
         name: comp.name,
         type: "company" as const,
         gstin: comp.gstin,
-        children: demoDivisions
+        children: divisions
           .filter((d) => d.companyId === comp.id)
           .map((div) => ({
             id: div.id,
@@ -55,7 +61,7 @@ function buildTree(): TreeNode[] {
             code: div.code,
             type: "division" as const,
             budget: div.budget,
-            children: demoDepartments
+            children: departments
               .filter((dept) => dept.divisionId === div.id)
               .map((dept) => ({
                 id: dept.id,
@@ -63,7 +69,7 @@ function buildTree(): TreeNode[] {
                 code: dept.code,
                 type: "department" as const,
                 budget: dept.budget,
-                children: demoCostCenters
+                children: costCenters
                   .filter((cc) => cc.companyId === comp.id)
                   .slice(0, 2)
                   .map((cc) => ({
@@ -192,11 +198,11 @@ export default function HierarchyPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {[
-          { label: "Enterprises", value: demoEnterprises.length, icon: Building2 },
-          { label: "Companies", value: demoCompanies.length, icon: Building2 },
-          { label: "Divisions", value: demoDivisions.length, icon: Layers },
-          { label: "Departments", value: demoDepartments.length, icon: Users },
-          { label: "Cost Centers", value: demoCostCenters.length, icon: IndianRupee },
+          { label: "Enterprises", value: getEnterprises().length, icon: Building2 },
+          { label: "Companies", value: getCompanies().length, icon: Building2 },
+          { label: "Divisions", value: getDivisions().length, icon: Layers },
+          { label: "Departments", value: getDepartments().length, icon: Users },
+          { label: "Cost Centers", value: getCostCenters().length, icon: IndianRupee },
         ].map((stat) => (
           <Card key={stat.label}>
             <CardContent className="p-4 flex items-center gap-3">

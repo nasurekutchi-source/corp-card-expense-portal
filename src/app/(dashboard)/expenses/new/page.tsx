@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
-import { demoCostCenters } from "@/lib/demo-data";
+import { getCostCenters } from "@/lib/store";
 import { GST_SLABS, TDS_SECTIONS } from "@/lib/constants";
 import {
   ArrowLeft,
@@ -164,7 +164,7 @@ export default function NewExpensePage() {
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium">Cost Center</label>
                   <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                    {demoCostCenters.map((cc) => (
+                    {getCostCenters().map((cc) => (
                       <option key={cc.id} value={cc.id}>
                         {cc.name} ({cc.code})
                       </option>

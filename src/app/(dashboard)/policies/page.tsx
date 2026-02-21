@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/shared/page-header";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
-import { demoPolicies, dashboardStats } from "@/lib/demo-data";
+import { getPolicies, getStats } from "@/lib/store";
 import {
   Shield,
   Plus,
@@ -29,14 +29,14 @@ import {
 } from "lucide-react";
 
 export default function PoliciesPage() {
-  const [policies, setPolicies] = useState(demoPolicies);
+  const [policies, setPolicies] = useState(getPolicies());
 
   const stats = {
     total: policies.length,
     active: policies.filter((p) => p.isActive).length,
     hard: policies.filter((p) => p.severity === "HARD").length,
     soft: policies.filter((p) => p.severity === "SOFT").length,
-    compliance: dashboardStats.policyComplianceScore,
+    compliance: getStats().policyComplianceScore,
   };
 
   return (
@@ -191,17 +191,24 @@ export default function PoliciesPage() {
                       {policy.type}
                     </span>
                     <span>&middot;</span>
-                    <span>
-                      {policy.rules.category && `Category: ${policy.rules.category}`}
-                      {policy.rules.threshold && `Receipt threshold: ₹${policy.rules.threshold}`}
-                      {policy.rules.blockedMCCs && `${policy.rules.blockedMCCs.length} blocked MCCs`}
-                    </span>
-                    {policy.rules.maxAmount && (
-                      <>
-                        <span>&middot;</span>
-                        <span>Max: ₹{policy.rules.maxAmount.toLocaleString("en-IN")}</span>
-                      </>
-                    )}
+                    {(() => {
+                      const r = policy.rules as { category?: string; threshold?: number; blockedMCCs?: string[]; maxAmount?: number };
+                      return (
+                        <>
+                          <span>
+                            {r.category && `Category: ${r.category}`}
+                            {r.threshold && `Receipt threshold: ₹${r.threshold}`}
+                            {r.blockedMCCs && `${r.blockedMCCs.length} blocked MCCs`}
+                          </span>
+                          {r.maxAmount && (
+                            <>
+                              <span>&middot;</span>
+                              <span>Max: ₹{r.maxAmount.toLocaleString("en-IN")}</span>
+                            </>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 

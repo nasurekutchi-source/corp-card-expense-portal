@@ -1,0 +1,43 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getCards, addCard } from "@/lib/store";
+
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const filters = {
+      status: searchParams.get("status") || undefined,
+      employeeId: searchParams.get("employeeId") || undefined,
+      type: searchParams.get("type") || undefined,
+      search: searchParams.get("search") || undefined,
+    };
+
+    const cards = getCards(filters);
+    return NextResponse.json({ data: cards, total: cards.length });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to fetch cards", details: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+
+    if (!body.last4Digits || !body.employeeId) {
+      return NextResponse.json(
+        { error: "Missing required fields: last4Digits, employeeId" },
+        { status: 400 }
+      );
+    }
+
+    const card = addCard(body);
+    return NextResponse.json({ data: card }, { status: 201 });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to create card", details: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 }
+    );
+  }
+}

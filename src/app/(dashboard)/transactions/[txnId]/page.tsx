@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
-import { demoTransactions } from "@/lib/demo-data";
+import { getTransactions } from "@/lib/store";
 import { formatINR, formatDate } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -33,7 +33,8 @@ import {
 
 export default function TransactionDetailPage({ params }: { params: Promise<{ txnId: string }> }) {
   const { txnId } = use(params);
-  const txn = demoTransactions.find((t) => t.id === txnId) || demoTransactions[0];
+  const transactions = getTransactions();
+  const txn = transactions.find((t) => t.id === txnId) || transactions[0];
 
   return (
     <div className="space-y-6 animate-in">

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
-import { demoDepartments, demoCostCenters } from "@/lib/demo-data";
+import { getDepartments, getCostCenters } from "@/lib/store";
 import {
   ArrowLeft,
   User,
@@ -107,7 +107,7 @@ export default function NewEmployeePage() {
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium">Department</label>
                   <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                    {demoDepartments.map((d) => (
+                    {getDepartments().map((d) => (
                       <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
                   </select>
@@ -155,7 +155,7 @@ export default function NewEmployeePage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-medium">Cost Center</label>
                 <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                  {demoCostCenters.map((cc) => (
+                  {getCostCenters().map((cc) => (
                     <option key={cc.id} value={cc.id}>{cc.name} ({cc.code})</option>
                   ))}
                 </select>

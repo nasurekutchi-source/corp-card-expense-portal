@@ -45,6 +45,7 @@ export type NavSection =
   | "settings"
   | "integrations"
   | "audit_trail"
+  | "data_management"
   | "my_cards"
   | "my_transactions"
   | "my_expenses"
@@ -54,12 +55,12 @@ const ROLE_NAV: Record<UserRole, NavSection[]> = {
   SYSTEM_ADMIN: [
     "dashboard", "hierarchy", "employees", "cards", "card_controls", "transactions",
     "expenses", "expense_reports", "approvals", "policies", "doa", "reimbursements",
-    "ai_assistant", "reports", "settings", "integrations", "audit_trail",
+    "ai_assistant", "reports", "settings", "integrations", "audit_trail", "data_management",
   ],
   COMPANY_ADMIN: [
     "dashboard", "hierarchy", "employees", "cards", "card_controls", "transactions",
     "expenses", "expense_reports", "approvals", "policies", "doa", "reimbursements",
-    "ai_assistant", "reports", "settings", "integrations",
+    "ai_assistant", "reports", "settings", "integrations", "data_management",
   ],
   FINANCE_CONTROLLER: [
     "dashboard", "cards", "transactions",

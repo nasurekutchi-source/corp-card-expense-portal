@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
-import { demoExpenseReports } from "@/lib/demo-data";
+import { getExpenseReports } from "@/lib/store";
 import { formatDate, formatINRCompact } from "@/lib/utils";
 import {
   FileText,
@@ -33,7 +33,9 @@ export default function ExpenseReportsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
-  const filteredReports = demoExpenseReports.filter((r) => {
+  const expenseReports = getExpenseReports();
+
+  const filteredReports = expenseReports.filter((r) => {
     const matchesSearch =
       r.reportNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -43,11 +45,11 @@ export default function ExpenseReportsPage() {
   });
 
   const stats = {
-    total: demoExpenseReports.length,
-    totalAmount: demoExpenseReports.reduce((s, r) => s + r.totalAmount, 0),
-    pending: demoExpenseReports.filter((r) => ["SUBMITTED", "IN_REVIEW"].includes(r.status)).length,
-    approved: demoExpenseReports.filter((r) => ["APPROVED", "PROCESSING", "PAID"].includes(r.status)).length,
-    drafts: demoExpenseReports.filter((r) => r.status === "DRAFT").length,
+    total: expenseReports.length,
+    totalAmount: expenseReports.reduce((s, r) => s + r.totalAmount, 0),
+    pending: expenseReports.filter((r) => ["SUBMITTED", "IN_REVIEW"].includes(r.status)).length,
+    approved: expenseReports.filter((r) => ["APPROVED", "PROCESSING", "PAID"].includes(r.status)).length,
+    drafts: expenseReports.filter((r) => r.status === "DRAFT").length,
   };
 
   return (
