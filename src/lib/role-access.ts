@@ -61,7 +61,8 @@ export type NavSection =
   | "workflows"
   | "disputes"
   | "subscriptions"
-  | "scheduled_actions";
+  | "scheduled_actions"
+  | "company_management";
 
 const ROLE_NAV: Record<UserRole, NavSection[]> = {
   SYSTEM_ADMIN: [
@@ -69,6 +70,7 @@ const ROLE_NAV: Record<UserRole, NavSection[]> = {
     "expenses", "expense_reports", "approvals", "policies", "doa", "reimbursements",
     "ai_assistant", "reports", "settings", "integrations", "audit_trail", "data_management",
     "statements", "payments", "workflows", "disputes", "subscriptions", "scheduled_actions",
+    "company_management",
   ],
   COMPANY_ADMIN: [
     "dashboard", "hierarchy", "employees", "cards", "card_controls", "transactions",

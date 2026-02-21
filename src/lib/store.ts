@@ -297,6 +297,7 @@ export interface CardStatement {
   status: string;
   transactionCount: number;
   generatedAt: string;
+  pdfUrl: string | null;
 }
 
 export interface CorporateStatement {
@@ -311,6 +312,7 @@ export interface CorporateStatement {
   dueDate: string;
   status: string;
   generatedAt: string;
+  pdfUrl: string | null;
 }
 
 // =============================================================================
@@ -2381,7 +2383,7 @@ export function addCardStatement(data: Partial<CardStatement>): CardStatement {
     cardId: "", cardLast4: "", employeeId: "", employeeName: "", companyId: "",
     statementPeriod: "", openingBalance: 0, closingBalance: 0, totalDebits: 0,
     totalCredits: 0, minimumDue: 0, dueDate: "", status: "GENERATED",
-    transactionCount: 0, generatedAt: new Date().toISOString(),
+    transactionCount: 0, generatedAt: new Date().toISOString(), pdfUrl: null,
     ...data,
   };
   store.cardStatements.push(stmt);
@@ -2423,7 +2425,7 @@ export function addCorporateStatement(data: Partial<CorporateStatement>): Corpor
     id: data.id || `corp-stmt-${generateId()}`,
     companyId: "", companyName: "", statementPeriod: "", totalCards: 0,
     totalTransactions: 0, totalAmount: 0, totalGst: 0, dueDate: "",
-    status: "GENERATED", generatedAt: new Date().toISOString(),
+    status: "GENERATED", generatedAt: new Date().toISOString(), pdfUrl: null,
     ...data,
   };
   store.corporateStatements.push(stmt);

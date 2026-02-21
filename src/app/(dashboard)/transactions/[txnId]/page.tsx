@@ -150,10 +150,10 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ tx
             </CardContent>
           </Card>
 
-          <Tabs defaultValue={mc.expenseManagement ? "receipt" : "notes"} className="space-y-3">
+          <Tabs defaultValue={mc.expenseManagement ? "receipt" : "dispute"} className="space-y-3">
             <TabsList>
               {mc.expenseManagement && <TabsTrigger value="receipt">Receipt</TabsTrigger>}
-              <TabsTrigger value="notes">Notes & Tags</TabsTrigger>
+              {mc.expenseManagement && <TabsTrigger value="notes">Notes & Tags</TabsTrigger>}
               <TabsTrigger value="dispute">Dispute</TabsTrigger>
             </TabsList>
 
@@ -194,36 +194,39 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ tx
               </TabsContent>
             )}
 
-            <TabsContent value="notes">
-              <Card>
-                <CardContent className="p-4 space-y-4">
-                  <div>
-                    <label className="text-xs font-medium">Tags</label>
-                    <div className="flex gap-1.5 flex-wrap mt-1.5">
-                      <Badge variant="secondary" className="text-xs">business-travel</Badge>
-                      <Badge variant="secondary" className="text-xs">Q4-review</Badge>
-                      <Button variant="outline" size="sm" className="h-6 text-xs">+ Add Tag</Button>
+            {mc.expenseManagement && (
+              <TabsContent value="notes">
+                <Card>
+                  <CardContent className="p-4 space-y-4">
+                    <div>
+                      <label className="text-xs font-medium">Tags</label>
+                      <p className="text-[10px] text-muted-foreground mb-1">Employee assigns tags for expense categorization</p>
+                      <div className="flex gap-1.5 flex-wrap mt-1.5">
+                        <Badge variant="secondary" className="text-xs">business-travel</Badge>
+                        <Badge variant="secondary" className="text-xs">Q4-review</Badge>
+                        <Button variant="outline" size="sm" className="h-6 text-xs">+ Add Tag</Button>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium">Business Purpose</label>
-                    <Input
-                      className="mt-1.5"
-                      placeholder="Enter business purpose..."
-                      defaultValue="Client meeting — Q4 planning review"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium">Notes</label>
-                    <textarea
-                      className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px]"
-                      placeholder="Add notes..."
-                    />
-                  </div>
-                  <Button size="sm">Save Notes</Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                    <div>
+                      <label className="text-xs font-medium">Business Purpose</label>
+                      <Input
+                        className="mt-1.5"
+                        placeholder="Enter business purpose..."
+                        defaultValue="Client meeting — Q4 planning review"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium">Notes</label>
+                      <textarea
+                        className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px]"
+                        placeholder="Add notes..."
+                      />
+                    </div>
+                    <Button size="sm">Save Notes</Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
 
             <TabsContent value="dispute">
               <Card>

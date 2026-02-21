@@ -482,6 +482,7 @@ export const demoCardStatements = demoCards.slice(0, 12).flatMap((card, i) => {
       status,
       transactionCount: Math.floor(Math.random() * 20) + 3,
       generatedAt: `${period}-20T00:00:00Z`,
+      pdfUrl: `/statements/card/stmt-${i * 3 + j + 1}.pdf`,
     };
   });
 });
@@ -504,6 +505,7 @@ export const demoCorporateStatements = demoCompanies.flatMap((company, i) =>
       dueDate: period === "2026-01" ? "2026-02-25" : period === "2025-12" ? "2026-01-25" : "2025-12-25",
       status: statuses[j % statuses.length],
       generatedAt: `${period}-20T00:00:00Z`,
+      pdfUrl: `/statements/corporate/corp-stmt-${i * 3 + j + 1}.pdf`,
     };
   })
 );

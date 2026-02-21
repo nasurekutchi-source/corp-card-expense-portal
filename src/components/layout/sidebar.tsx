@@ -38,6 +38,7 @@ import {
   AlertTriangle,
   Repeat,
   Calendar,
+  Building2,
 } from "lucide-react";
 
 interface NavItem {
@@ -96,6 +97,16 @@ function getNavGroups(role: UserRole, mc: import("@/lib/role-access").ModuleConf
       ],
     },
   ];
+
+  // Bank Administration — SYSTEM_ADMIN only
+  if (canAccessNav(role, "company_management", mc)) {
+    groups.push({
+      label: "Bank Administration",
+      items: [
+        { label: "Company Management", href: "/admin/companies", icon: Building2, section: "company_management" },
+      ],
+    });
+  }
 
   // Card Portal — day-to-day operations
   const cardItems: NavItem[] = [];
