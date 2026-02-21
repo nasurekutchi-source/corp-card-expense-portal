@@ -121,8 +121,8 @@ export default function SettingsPage() {
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium">Primary Color</label>
                   <div className="flex gap-2">
-                    <Input defaultValue="#0d3b66" className="flex-1" />
-                    <div className="w-10 h-10 rounded-md bg-[#0d3b66] border" />
+                    <Input defaultValue="#9C1D26" className="flex-1" />
+                    <div className="w-10 h-10 rounded-md bg-[#9C1D26] border" />
                   </div>
                 </div>
               </div>

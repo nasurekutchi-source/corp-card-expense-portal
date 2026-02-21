@@ -69,7 +69,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen">
       {/* Left side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#0d3b66] via-[#1d5a8a] to-[#2a7ab5] p-12 flex-col justify-between relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#9C1D26] via-[#7A161E] to-[#5A1015] p-12 flex-col justify-between relative overflow-hidden">
         {/* Background pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full blur-3xl" />
