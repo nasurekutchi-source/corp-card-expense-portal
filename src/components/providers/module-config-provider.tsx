@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 
 export interface ModuleConfig {
@@ -27,13 +27,13 @@ const defaultConfig: ModuleConfig = {
 
 interface ModuleConfigContextValue {
   config: ModuleConfig;
-  updateConfig: (updates: Partial<ModuleConfig>) => Promise<void>;
+  updateConfig: (updates: Partial<ModuleConfig>) => void;
   isLoading: boolean;
 }
 
 const ModuleConfigContext = createContext<ModuleConfigContextValue>({
   config: defaultConfig,
-  updateConfig: async () => {},
+  updateConfig: () => {},
   isLoading: true,
 });
 
@@ -43,27 +43,32 @@ export function ModuleConfigProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetch("/api/v1/settings/modules")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch");
+        return res.json();
+      })
       .then((data) => setConfig(data))
-      .catch(() => {})
+      .catch(() => {
+        // API not available, use defaults
+      })
       .finally(() => setIsLoading(false));
   }, []);
 
-  const updateConfig = useCallback(async (updates: Partial<ModuleConfig>) => {
-    const optimistic = { ...config, ...updates };
-    setConfig(optimistic);
-    try {
-      const res = await fetch("/api/v1/settings/modules", {
+  function updateConfig(updates: Partial<ModuleConfig>) {
+    // Optimistic update — immediately reflect in UI
+    setConfig((prev) => {
+      const next = { ...prev, ...updates };
+
+      // Fire-and-forget API call to persist
+      fetch("/api/v1/settings/modules", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
-      });
-      const data = await res.json();
-      setConfig(data);
-    } catch {
-      setConfig(config);
-    }
-  }, [config]);
+        body: JSON.stringify(next),
+      }).catch(() => {});
+
+      return next;
+    });
+  }
 
   return (
     <ModuleConfigContext.Provider value={{ config, updateConfig, isLoading }}>
