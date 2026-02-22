@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +46,8 @@ import {
   ShieldAlert,
   Loader2,
   History,
+  Settings,
+  Zap,
 } from "lucide-react";
 
 // -- Types matching store.ts --
@@ -154,6 +157,18 @@ export default function ApprovalsPage() {
   const [delegateTo, setDelegateTo] = useState("");
   const [bulkConfirm, setBulkConfirm] = useState(false);
 
+  // Escalation settings state
+  const [escalationDialog, setEscalationDialog] = useState(false);
+  const [escConfig, setEscConfig] = useState({
+    enabled: true,
+    slaHours: 48,
+    escalateTo: "SKIP_LEVEL" as "SKIP_LEVEL" | "FINANCE" | "ADMIN",
+    maxEscalations: 2,
+    notifyOriginalApprover: true,
+  });
+  const [escLoading, setEscLoading] = useState(false);
+  const [escRunResult, setEscRunResult] = useState<{ escalated: string[]; checked: number } | null>(null);
+
   // Simulated timeline per approval
   const [timelines] = useState<Record<string, TimelineEntry[]>>(() => ({}));
 
@@ -177,6 +192,64 @@ export default function ApprovalsPage() {
     setLoading(true);
     fetchApprovals();
   }, [fetchApprovals]);
+
+  // -- Fetch escalation config on mount --
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/v1/approvals/escalation");
+        if (res.ok) {
+          const data = await res.json();
+          setEscConfig(data);
+        }
+      } catch {
+        // silent
+      }
+    })();
+  }, []);
+
+  // -- Save escalation config --
+  async function saveEscalationConfig() {
+    setEscLoading(true);
+    try {
+      const res = await fetch("/api/v1/approvals/escalation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(escConfig),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEscConfig(data);
+      }
+    } catch {
+      // silent
+    } finally {
+      setEscLoading(false);
+    }
+  }
+
+  // -- Run escalation check --
+  async function runEscalationCheck() {
+    setEscLoading(true);
+    setEscRunResult(null);
+    try {
+      const res = await fetch("/api/v1/approvals/escalation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "run" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEscRunResult(data);
+        // Refresh approvals to reflect escalated items
+        fetchApprovals();
+      }
+    } catch {
+      // silent
+    } finally {
+      setEscLoading(false);
+    }
+  }
 
   // -- Build a timeline for an approval (simulated history) --
   function getTimeline(a: Approval): TimelineEntry[] {
@@ -341,6 +414,10 @@ export default function ApprovalsPage() {
         title="Approval Inbox"
         description="Review and action expense reports awaiting your approval"
       >
+        <Button variant="outline" size="sm" onClick={() => setEscalationDialog(true)}>
+          <Settings className="w-4 h-4" />
+          Escalation Settings
+        </Button>
         {selectedIds.length > 0 && (
           <Button onClick={() => setBulkConfirm(true)} className="bg-emerald-600 hover:bg-emerald-700">
             <CheckCheck className="w-4 h-4" />
@@ -403,6 +480,7 @@ export default function ApprovalsPage() {
           <TabsList>
             <TabsTrigger value="ALL">All</TabsTrigger>
             <TabsTrigger value="PENDING">Pending</TabsTrigger>
+            <TabsTrigger value="ESCALATED">Escalated</TabsTrigger>
             <TabsTrigger value="APPROVED">Approved</TabsTrigger>
             <TabsTrigger value="REJECTED">Rejected</TabsTrigger>
           </TabsList>
@@ -857,6 +935,146 @@ export default function ApprovalsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ================================================================ */}
+      {/* Escalation Settings Dialog */}
+      {/* ================================================================ */}
+      <Dialog open={escalationDialog} onOpenChange={(open) => { if (!open) { setEscalationDialog(false); setEscRunResult(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Auto-Escalation Settings
+            </DialogTitle>
+            <DialogDescription>
+              Configure automatic escalation when approval SLA is breached.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            {/* Enable toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Auto-Escalation Enabled</p>
+                <p className="text-xs text-muted-foreground">Automatically escalate overdue approvals</p>
+              </div>
+              <Switch
+                checked={escConfig.enabled}
+                onCheckedChange={(v) => setEscConfig((prev) => ({ ...prev, enabled: v }))}
+              />
+            </div>
+
+            {escConfig.enabled && (
+              <>
+                {/* SLA Hours */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">SLA Threshold (hours)</label>
+                  <p className="text-xs text-muted-foreground">Escalate if pending longer than this</p>
+                  <Input
+                    type="number"
+                    value={escConfig.slaHours}
+                    onChange={(e) => setEscConfig((prev) => ({ ...prev, slaHours: parseInt((e.target as HTMLInputElement).value) || 0 }))}
+                    min={1}
+                    max={720}
+                    className="w-32"
+                  />
+                </div>
+
+                {/* Escalate To */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Escalate To</label>
+                  <p className="text-xs text-muted-foreground">Who receives the escalated approval</p>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={escConfig.escalateTo}
+                    onChange={(e) => setEscConfig((prev) => ({ ...prev, escalateTo: (e.target as HTMLSelectElement).value as "SKIP_LEVEL" | "FINANCE" | "ADMIN" }))}
+                  >
+                    <option value="SKIP_LEVEL">Skip-Level Manager</option>
+                    <option value="FINANCE">Finance Controller</option>
+                    <option value="ADMIN">Company Admin</option>
+                  </select>
+                </div>
+
+                {/* Max Escalations */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Max Escalations</label>
+                  <p className="text-xs text-muted-foreground">Maximum times an approval can be escalated</p>
+                  <Input
+                    type="number"
+                    value={escConfig.maxEscalations}
+                    onChange={(e) => setEscConfig((prev) => ({ ...prev, maxEscalations: parseInt((e.target as HTMLInputElement).value) || 1 }))}
+                    min={1}
+                    max={5}
+                    className="w-32"
+                  />
+                </div>
+
+                {/* Notify Original Approver */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Notify Original Approver</p>
+                    <p className="text-xs text-muted-foreground">Send notification when escalated</p>
+                  </div>
+                  <Switch
+                    checked={escConfig.notifyOriginalApprover}
+                    onCheckedChange={(v) => setEscConfig((prev) => ({ ...prev, notifyOriginalApprover: v }))}
+                  />
+                </div>
+
+                {/* Run Now */}
+                <div className="pt-2 border-t">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    disabled={escLoading}
+                    onClick={runEscalationCheck}
+                  >
+                    {escLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Zap className="w-4 h-4" />
+                    )}
+                    Run Escalation Check Now
+                  </Button>
+                  {escRunResult && (
+                    <div className={`mt-2 rounded-md px-3 py-2 text-xs ${
+                      escRunResult.escalated.length > 0
+                        ? "bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800"
+                        : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                    }`}>
+                      {escRunResult.escalated.length > 0 ? (
+                        <p>Escalated {escRunResult.escalated.length} of {escRunResult.checked} pending approvals</p>
+                      ) : (
+                        <p>Checked {escRunResult.checked} pending approvals — none breached SLA</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEscalationDialog(false); setEscRunResult(null); }}>
+              Cancel
+            </Button>
+            <Button
+              disabled={escLoading}
+              onClick={() => { saveEscalationConfig(); setEscalationDialog(false); setEscRunResult(null); }}
+              style={{ backgroundColor: "#0d3b66" }}
+              className="hover:opacity-90"
+            >
+              {escLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Check className="w-4 h-4" />
+              )}
+              Save Settings
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -875,6 +1093,8 @@ function StatusBadge({ status }: { status: string }) {
       return <Badge variant="destructive" className="text-[9px]">Rejected</Badge>;
     case "DELEGATED":
       return <Badge variant="info" className="text-[9px]">Delegated</Badge>;
+    case "ESCALATED":
+      return <Badge variant="destructive" className="text-[9px] bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800">Escalated</Badge>;
     default:
       return <Badge variant="secondary" className="text-[9px]">{status}</Badge>;
   }

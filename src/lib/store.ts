@@ -20,9 +20,7 @@ import {
   demoEmployees,
   demoCards,
   demoTransactions,
-  demoExpenses,
-  demoExpenseReports,
-  demoApprovals,
+  demoExpenseReports,  // still used by buildDemoReimbursements (kept for reference)
   demoPolicies,
   demoCardControlPolicies,
   doaAuthorityLevels as demoDoaAuthorityLevels,
@@ -191,6 +189,7 @@ export interface Expense {
   date: string;
   hasReceipt: boolean;
   gstDetails: GstDetails;
+  status?: string;
 }
 
 export interface ExpenseReport {
@@ -629,6 +628,54 @@ export interface ExpenseCategoryConfig {
   subcategories: ExpenseCategorySubcategory[];
 }
 
+// =============================================================================
+// Audit Log Types
+// =============================================================================
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: string;
+  entityType: string; // "EXPENSE" | "EXPENSE_REPORT" | "APPROVAL" | "CARD" | "EMPLOYEE" | "REIMBURSEMENT" | etc
+  entityId: string;
+  action: string; // "CREATE" | "UPDATE" | "DELETE" | "APPROVE" | "REJECT" | "INITIATE" | etc
+  userId: string;
+  userName: string;
+  changes: Record<string, { old: any; new: any }> | null;
+  metadata: Record<string, any> | null;
+  ipAddress: string;
+}
+
+// =============================================================================
+// GSTIN Cache Types (CIGNET GSP Integration)
+// =============================================================================
+
+export interface GstinRecord {
+  id: string;
+  gstin: string;
+  legalName: string;
+  tradeName: string;
+  status: "ACTIVE" | "INACTIVE" | "CANCELLED" | "SUSPENDED";
+  stateCode: string;
+  stateName: string;
+  registrationType: string; // "Regular" | "Composition" | "SEZ" | "Casual"
+  lastVerified: string;
+  validatedVia: "CIGNET" | "MANUAL" | "CACHE";
+  address: string;
+  einvoiceEnabled: boolean;
+}
+
+// =============================================================================
+// Escalation Config Types
+// =============================================================================
+
+export interface EscalationConfig {
+  enabled: boolean;
+  slaHours: number; // Hours before escalation triggers
+  escalateTo: "SKIP_LEVEL" | "FINANCE" | "ADMIN"; // Who to escalate to
+  maxEscalations: number; // Max times an approval can be escalated
+  notifyOriginalApprover: boolean;
+}
+
 // -- Store aggregate --
 
 export interface Store {
@@ -660,6 +707,8 @@ export interface Store {
   expenseCategories: ExpenseCategoryConfig[];
   receipts: Receipt[];
   reimbursements: Reimbursement[];
+  auditLog: AuditLogEntry[];
+  gstinCache: GstinRecord[];
 }
 
 // =============================================================================
@@ -738,6 +787,25 @@ function buildDemoReimbursements(): Reimbursement[] {
 }
 
 // =============================================================================
+// Build Demo GSTIN Cache (CIGNET GSP Integration)
+// =============================================================================
+
+function buildDemoGstinCache(): GstinRecord[] {
+  return [
+    { id: "gstin-1", gstin: "27AABCU9603R1ZM", legalName: "Bharat Financial Services India Private Limited", tradeName: "BFS India Ltd", status: "ACTIVE", stateCode: "27", stateName: "Maharashtra", registrationType: "Regular", lastVerified: "2026-02-20T00:00:00Z", validatedVia: "CIGNET", address: "Mumbai, Maharashtra", einvoiceEnabled: true },
+    { id: "gstin-2", gstin: "29AADCB2230Q2ZG", legalName: "BFS Digital Solutions Private Limited", tradeName: "BFS Digital", status: "ACTIVE", stateCode: "29", stateName: "Karnataka", registrationType: "Regular", lastVerified: "2026-02-20T00:00:00Z", validatedVia: "CIGNET", address: "Bangalore, Karnataka", einvoiceEnabled: true },
+    { id: "gstin-3", gstin: "07AACCF8274K1Z8", legalName: "BFS Capital Markets Limited", tradeName: "BFS Capital", status: "ACTIVE", stateCode: "07", stateName: "Delhi", registrationType: "Regular", lastVerified: "2026-02-20T00:00:00Z", validatedVia: "CIGNET", address: "New Delhi, Delhi", einvoiceEnabled: true },
+    { id: "gstin-4", gstin: "27AABCT1234R1ZM", legalName: "Taj Hotels & Resorts", tradeName: "IHCL", status: "ACTIVE", stateCode: "27", stateName: "Maharashtra", registrationType: "Regular", lastVerified: "2026-02-18T00:00:00Z", validatedVia: "CIGNET", address: "Mumbai, Maharashtra", einvoiceEnabled: true },
+    { id: "gstin-5", gstin: "07AABCI5678S1ZN", legalName: "InterGlobe Aviation Ltd", tradeName: "IndiGo Airlines", status: "ACTIVE", stateCode: "07", stateName: "Delhi", registrationType: "Regular", lastVerified: "2026-02-15T00:00:00Z", validatedVia: "CIGNET", address: "Gurgaon, Haryana", einvoiceEnabled: true },
+    { id: "gstin-6", gstin: "29AABCU9012T1ZP", legalName: "Uber India Systems Pvt Ltd", tradeName: "Uber India", status: "ACTIVE", stateCode: "29", stateName: "Karnataka", registrationType: "Regular", lastVerified: "2026-02-10T00:00:00Z", validatedVia: "CIGNET", address: "Bangalore, Karnataka", einvoiceEnabled: false },
+    { id: "gstin-7", gstin: "29AABCB3456U1ZQ", legalName: "Bundl Technologies Pvt Ltd", tradeName: "Swiggy", status: "ACTIVE", stateCode: "29", stateName: "Karnataka", registrationType: "Regular", lastVerified: "2026-02-12T00:00:00Z", validatedVia: "CIGNET", address: "Bangalore, Karnataka", einvoiceEnabled: true },
+    { id: "gstin-8", gstin: "27AABCA7890V1ZR", legalName: "Amazon Seller Services Pvt Ltd", tradeName: "Amazon India", status: "ACTIVE", stateCode: "27", stateName: "Maharashtra", registrationType: "Regular", lastVerified: "2026-02-14T00:00:00Z", validatedVia: "CIGNET", address: "Mumbai, Maharashtra", einvoiceEnabled: true },
+    { id: "gstin-9", gstin: "27AABCW2345W1ZS", legalName: "WeWork India Management Pvt Ltd", tradeName: "WeWork India", status: "ACTIVE", stateCode: "27", stateName: "Maharashtra", registrationType: "Regular", lastVerified: "2026-02-16T00:00:00Z", validatedVia: "CIGNET", address: "Mumbai, Maharashtra", einvoiceEnabled: true },
+    { id: "gstin-10", gstin: "27AABCS6789X1ZT", legalName: "Tata Starbucks Pvt Ltd", tradeName: "Starbucks India", status: "ACTIVE", stateCode: "27", stateName: "Maharashtra", registrationType: "Regular", lastVerified: "2026-02-08T00:00:00Z", validatedVia: "CIGNET", address: "Mumbai, Maharashtra", einvoiceEnabled: true },
+  ];
+}
+
+// =============================================================================
 // Build Initial Store from Demo Data
 // =============================================================================
 
@@ -753,9 +821,9 @@ function buildInitialStore(): Store {
     employees: deepClone(demoEmployees) as Employee[],
     cards: deepClone(demoCards) as Card[],
     transactions: deepClone(demoTransactions) as Transaction[],
-    expenses: deepClone(demoExpenses) as Expense[],
-    expenseReports: deepClone(demoExpenseReports) as ExpenseReport[],
-    approvals: deepClone(demoApprovals) as Approval[],
+    expenses: [],
+    expenseReports: [],
+    approvals: [],
     policies: deepClone(demoPolicies) as Policy[],
     cardControlPolicies: deepClone(demoCardControlPolicies) as CardControlPolicy[],
     doaAuthorityLevels: deepClone(demoDoaAuthorityLevels) as DoaAuthorityLevel[],
@@ -770,7 +838,9 @@ function buildInitialStore(): Store {
     scheduledCardActions: deepClone(demoScheduledCardActions) as ScheduledCardAction[],
     expenseCategories: buildDefaultExpenseCategories(),
     receipts: [],
-    reimbursements: buildDemoReimbursements(),
+    reimbursements: [],
+    auditLog: [],
+    gstinCache: buildDemoGstinCache(),
   };
 }
 
@@ -796,6 +866,7 @@ export interface ModuleConfig {
   virtualCardIssuance: boolean;
   rbiLrs: boolean;
   gstCompliance: boolean;
+  paymentMode: "REALTIME" | "BATCH";
 }
 
 let moduleConfig: ModuleConfig = {
@@ -810,6 +881,7 @@ let moduleConfig: ModuleConfig = {
   virtualCardIssuance: true,
   rbiLrs: false,
   gstCompliance: false,
+  paymentMode: "BATCH" as const,
 };
 
 export function getModuleConfig(): ModuleConfig {
@@ -1619,13 +1691,31 @@ export function addExpense(data: Partial<Expense>): Expense {
     gstDetails,
   };
   store.expenses.push(expense);
+  addAuditLogEntry({
+    entityType: "EXPENSE",
+    entityId: expense.id,
+    action: "CREATE",
+    userName: expense.employeeName || "System",
+    metadata: { amount: expense.amount, merchantName: expense.merchantName, category: expense.category },
+  });
   return expense;
 }
 
 export function updateExpense(id: string, updates: Partial<Expense>): Expense | null {
   const idx = store.expenses.findIndex((e) => e.id === id);
   if (idx === -1) return null;
+  const old = { ...store.expenses[idx] };
   store.expenses[idx] = { ...store.expenses[idx], ...updates, id };
+  addAuditLogEntry({
+    entityType: "EXPENSE",
+    entityId: id,
+    action: "UPDATE",
+    userName: "System",
+    changes: Object.keys(updates).reduce((acc, key) => {
+      acc[key] = { old: (old as any)[key], new: (updates as any)[key] };
+      return acc;
+    }, {} as Record<string, { old: any; new: any }>),
+  });
   return store.expenses[idx];
 }
 
@@ -1730,6 +1820,13 @@ export function addExpenseReport(data: Partial<ExpenseReport>): ExpenseReport {
     department,
   };
   store.expenseReports.push(report);
+  addAuditLogEntry({
+    entityType: "EXPENSE_REPORT",
+    entityId: report.id,
+    action: "CREATE",
+    userName: report.employeeName || "System",
+    metadata: { reportNumber: report.reportNumber, totalAmount: report.totalAmount, status: report.status },
+  });
   return report;
 }
 
@@ -1841,6 +1938,15 @@ export function updateApproval(
       };
     }
   }
+
+  const auditAction = data.status === "APPROVED" ? "APPROVE" : data.status === "REJECTED" ? "REJECT" : "UPDATE";
+  addAuditLogEntry({
+    entityType: "APPROVAL",
+    entityId: id,
+    action: auditAction,
+    userName: data.reviewedBy || "System",
+    metadata: { status: data.status, comment: data.comment, entityId: approval.entityId, reportNumber: approval.reportNumber },
+  });
 
   return store.approvals[idx];
 }
@@ -3145,7 +3251,17 @@ export function updateReimbursement(id: string, updates: Partial<Reimbursement>)
 }
 
 export function initiateReimbursement(id: string): Reimbursement | null {
-  return updateReimbursement(id, { status: "INITIATED", initiatedAt: new Date().toISOString() });
+  const result = updateReimbursement(id, { status: "INITIATED", initiatedAt: new Date().toISOString() });
+  if (result) {
+    addAuditLogEntry({
+      entityType: "REIMBURSEMENT",
+      entityId: id,
+      action: "INITIATE",
+      userName: "System",
+      metadata: { employeeName: result.employeeName, netAmount: result.netAmount, reportNumber: result.reportNumber },
+    });
+  }
+  return result;
 }
 
 export function processReimbursement(id: string, paymentRef: string): Reimbursement | null {
@@ -3153,11 +3269,68 @@ export function processReimbursement(id: string, paymentRef: string): Reimbursem
 }
 
 export function completeReimbursement(id: string): Reimbursement | null {
-  return updateReimbursement(id, { status: "PAID", paidAt: new Date().toISOString() });
+  const result = updateReimbursement(id, { status: "PAID", paidAt: new Date().toISOString() });
+  if (result) {
+    addAuditLogEntry({
+      entityType: "REIMBURSEMENT",
+      entityId: id,
+      action: "COMPLETE",
+      userName: "System",
+      metadata: { employeeName: result.employeeName, netAmount: result.netAmount, paymentRef: result.paymentRef },
+    });
+  }
+  return result;
 }
 
 export function failReimbursement(id: string, reason: string): Reimbursement | null {
   return updateReimbursement(id, { status: "FAILED", failureReason: reason });
+}
+
+// =============================================================================
+// Audit Log
+// =============================================================================
+
+export function getAuditLog(filters?: {
+  entityType?: string;
+  entityId?: string;
+  action?: string;
+  userId?: string;
+  limit?: number;
+}): AuditLogEntry[] {
+  let result = [...store.auditLog].sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+  if (filters?.entityType) result = result.filter((e) => e.entityType === filters.entityType);
+  if (filters?.entityId) result = result.filter((e) => e.entityId === filters.entityId);
+  if (filters?.action) result = result.filter((e) => e.action === filters.action);
+  if (filters?.userId) result = result.filter((e) => e.userId === filters.userId);
+  if (filters?.limit) result = result.slice(0, filters.limit);
+  return result;
+}
+
+export function addAuditLogEntry(data: {
+  entityType: string;
+  entityId: string;
+  action: string;
+  userId?: string;
+  userName?: string;
+  changes?: Record<string, { old: any; new: any }> | null;
+  metadata?: Record<string, any> | null;
+}): AuditLogEntry {
+  const entry: AuditLogEntry = {
+    id: `audit-${generateId()}`,
+    timestamp: new Date().toISOString(),
+    entityType: data.entityType,
+    entityId: data.entityId,
+    action: data.action,
+    userId: data.userId || "system",
+    userName: data.userName || "System",
+    changes: data.changes || null,
+    metadata: data.metadata || null,
+    ipAddress: "127.0.0.1",
+  };
+  store.auditLog.push(entry);
+  return entry;
 }
 
 // =============================================================================
@@ -3254,4 +3427,125 @@ export function detectDuplicateExpenses(
   }
 
   return matches.sort((a, b) => b.matchScore - a.matchScore).slice(0, 5);
+}
+
+// =============================================================================
+// GSTIN Cache (CIGNET GSP Integration)
+// =============================================================================
+
+export function getGstinCache(): GstinRecord[] {
+  return [...store.gstinCache];
+}
+
+export function lookupGstin(gstin: string): GstinRecord | undefined {
+  return store.gstinCache.find(g => g.gstin === gstin);
+}
+
+export function addGstinRecord(data: Partial<GstinRecord>): GstinRecord {
+  // Check if already exists
+  const existing = store.gstinCache.find(g => g.gstin === data.gstin);
+  if (existing) {
+    // Update existing
+    Object.assign(existing, data, { lastVerified: new Date().toISOString() });
+    return existing;
+  }
+
+  const record: GstinRecord = {
+    id: data.id || `gstin-${generateId()}`,
+    gstin: data.gstin || "",
+    legalName: data.legalName || "",
+    tradeName: data.tradeName || "",
+    status: data.status || "ACTIVE",
+    stateCode: data.gstin?.substring(0, 2) || "",
+    stateName: getStateName(data.gstin?.substring(0, 2) || ""),
+    registrationType: data.registrationType || "Regular",
+    lastVerified: new Date().toISOString(),
+    validatedVia: data.validatedVia || "MANUAL",
+    address: data.address || "",
+    einvoiceEnabled: data.einvoiceEnabled ?? false,
+  };
+  store.gstinCache.push(record);
+  return record;
+}
+
+function getStateName(code: string): string {
+  const states: Record<string, string> = {
+    "01": "Jammu & Kashmir", "02": "Himachal Pradesh", "03": "Punjab", "04": "Chandigarh",
+    "05": "Uttarakhand", "06": "Haryana", "07": "Delhi", "08": "Rajasthan",
+    "09": "Uttar Pradesh", "10": "Bihar", "11": "Sikkim", "12": "Arunachal Pradesh",
+    "13": "Nagaland", "14": "Manipur", "15": "Mizoram", "16": "Tripura",
+    "17": "Meghalaya", "18": "Assam", "19": "West Bengal", "20": "Jharkhand",
+    "21": "Odisha", "22": "Chhattisgarh", "23": "Madhya Pradesh", "24": "Gujarat",
+    "27": "Maharashtra", "29": "Karnataka", "32": "Kerala", "33": "Tamil Nadu",
+    "36": "Telangana", "37": "Andhra Pradesh",
+  };
+  return states[code] || "Unknown";
+}
+
+export function refreshGstinCache(): { refreshed: number; total: number } {
+  // Simulate periodic refresh from CIGNET
+  let refreshed = 0;
+  store.gstinCache.forEach(record => {
+    const lastVerified = new Date(record.lastVerified);
+    const daysSince = (Date.now() - lastVerified.getTime()) / 86400000;
+    if (daysSince > 7) { // Refresh if older than 7 days
+      record.lastVerified = new Date().toISOString();
+      record.validatedVia = "CIGNET";
+      refreshed++;
+    }
+  });
+  return { refreshed, total: store.gstinCache.length };
+}
+
+// =============================================================================
+// Escalation Config (Auto-Escalation for Approvals)
+// =============================================================================
+
+let escalationConfig: EscalationConfig = {
+  enabled: true,
+  slaHours: 48,
+  escalateTo: "SKIP_LEVEL",
+  maxEscalations: 2,
+  notifyOriginalApprover: true,
+};
+
+export function getEscalationConfig(): EscalationConfig {
+  return { ...escalationConfig };
+}
+
+export function updateEscalationConfig(updates: Partial<EscalationConfig>): EscalationConfig {
+  escalationConfig = { ...escalationConfig, ...updates };
+  return { ...escalationConfig };
+}
+
+export function checkAndEscalateApprovals(): { escalated: string[]; checked: number } {
+  const now = Date.now();
+  const escalated: string[] = [];
+
+  for (const approval of store.approvals) {
+    if (approval.status !== "PENDING") continue;
+
+    const submittedAt = new Date(approval.submittedAt || approval.dueAt).getTime();
+    const hoursSince = (now - submittedAt) / 3600000;
+
+    if (hoursSince > escalationConfig.slaHours) {
+      // Escalate
+      approval.status = "ESCALATED";
+      escalated.push(approval.id);
+
+      addAuditLogEntry({
+        entityType: "APPROVAL",
+        entityId: approval.id,
+        action: "ESCALATE",
+        userName: "System (Auto-Escalation)",
+        metadata: {
+          reason: `SLA breached: ${Math.round(hoursSince)}h > ${escalationConfig.slaHours}h threshold`,
+          escalateTo: escalationConfig.escalateTo,
+          reportNumber: approval.reportNumber,
+        },
+      });
+    }
+  }
+
+  return { escalated, checked: store.approvals.filter(a => a.status === "PENDING").length + escalated.length };
 }

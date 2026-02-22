@@ -16,6 +16,7 @@ export interface ModuleConfig {
   virtualCardIssuance: boolean;
   rbiLrs: boolean;
   gstCompliance: boolean;
+  paymentMode: "REALTIME" | "BATCH";
 }
 
 export const defaultModuleConfig: ModuleConfig = {
@@ -30,6 +31,7 @@ export const defaultModuleConfig: ModuleConfig = {
   virtualCardIssuance: true,
   rbiLrs: false,
   gstCompliance: false,
+  paymentMode: "BATCH" as const,
 };
 
 // ==================== NAV ACCESS ====================

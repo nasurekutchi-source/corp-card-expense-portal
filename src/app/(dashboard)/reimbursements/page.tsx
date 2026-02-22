@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
 import { getEmployees } from "@/lib/store";
+import { useModuleConfig } from "@/components/providers/module-config-provider";
 import { formatINRCompact } from "@/lib/utils";
 import {
   Banknote,
@@ -65,6 +66,8 @@ const paymentProfiles = getEmployees()
   }));
 
 export default function ReimbursementsPage() {
+  const { config: modules } = useModuleConfig();
+  const paymentMode = modules.paymentMode || "BATCH";
   const [reimbursements, setReimbursements] = useState<ReimbursementItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -126,6 +129,42 @@ export default function ReimbursementsPage() {
     }
   }
 
+  // -- Real-time: Initiate Payment (simulates PENDING → INITIATED → PROCESSING → PAID) --
+  async function handleRealtimeInitiate(id: string) {
+    setActionLoading(id);
+    try {
+      // Step 1: PENDING → INITIATED
+      await fetch("/api/v1/reimbursements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "initiate", id }),
+      });
+      await fetchReimbursements();
+
+      // Step 2: Simulate processing delay, then INITIATED → PROCESSING
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      await fetch("/api/v1/reimbursements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "process", id, paymentRef: `RTGS${Date.now()}` }),
+      });
+      await fetchReimbursements();
+
+      // Step 3: Simulate bank response delay, then PROCESSING → PAID
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await fetch("/api/v1/reimbursements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "complete", id }),
+      });
+      await fetchReimbursements();
+    } catch {
+      // silent
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
   // -- Download NEFT file --
   async function handleDownloadNEFT() {
     try {
@@ -177,18 +216,25 @@ export default function ReimbursementsPage() {
   return (
     <div className="space-y-6 animate-in">
       <PageHeader title="Reimbursements" description="Track reimbursement status and payment profiles">
-        <Button variant="outline" onClick={handleDownloadNEFT}>
-          <Download className="w-4 h-4" />
-          NEFT File
-        </Button>
-        <Button onClick={handleProcessPayments} disabled={actionLoading === "bulk" || stats.pending === 0}>
-          {actionLoading === "bulk" ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Send className="w-4 h-4" />
-          )}
-          Process Payments
-        </Button>
+        <Badge variant={paymentMode === "REALTIME" ? "success" : "outline"} className="text-xs">
+          {paymentMode === "REALTIME" ? "Real-time API" : "Batch File"}
+        </Badge>
+        {paymentMode === "BATCH" && (
+          <>
+            <Button variant="outline" onClick={handleDownloadNEFT}>
+              <Download className="w-4 h-4" />
+              NEFT File
+            </Button>
+            <Button onClick={handleProcessPayments} disabled={actionLoading === "bulk" || stats.pending === 0}>
+              {actionLoading === "bulk" ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+              Process Payments
+            </Button>
+          </>
+        )}
       </PageHeader>
 
       {/* Stats */}
@@ -348,9 +394,24 @@ export default function ReimbursementsPage() {
 
                   {/* Action */}
                   <div>
-                    {reimb.status === "PENDING" && (
+                    {paymentMode === "REALTIME" && reimb.status === "PENDING" && (
                       <Button
                         size="sm"
+                        onClick={() => handleRealtimeInitiate(reimb.id)}
+                        disabled={actionLoading === reimb.id}
+                      >
+                        {actionLoading === reimb.id ? (
+                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        ) : (
+                          <Send className="w-3 h-3 mr-1" />
+                        )}
+                        Initiate Payment
+                      </Button>
+                    )}
+                    {paymentMode === "BATCH" && reimb.status === "PENDING" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
                         onClick={() => handleInitiate(reimb.id)}
                         disabled={actionLoading === reimb.id}
                       >

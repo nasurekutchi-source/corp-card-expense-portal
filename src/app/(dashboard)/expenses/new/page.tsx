@@ -181,6 +181,11 @@ export default function NewExpensePage() {
   const [duplicates, setDuplicates] = useState<any[]>([]);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
 
+  // GSTIN validation state (CIGNET GSP integration)
+  const [gstinValid, setGstinValid] = useState<boolean | null>(null);
+  const [gstinData, setGstinData] = useState<any>(null);
+  const [gstinChecking, setGstinChecking] = useState(false);
+
   // Receipt upload state
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -232,6 +237,29 @@ export default function NewExpensePage() {
     }, 800);
     return () => clearTimeout(timer);
   }, [form.amount, form.merchantName, form.date]);
+
+  // Debounced GSTIN validation via CIGNET GSP
+  useEffect(() => {
+    const gstin = form.supplierGstin;
+    if (!gstin || gstin.length < 15) {
+      setGstinValid(null);
+      setGstinData(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setGstinChecking(true);
+      try {
+        const res = await fetch(`/api/v1/gstin?gstin=${gstin}`);
+        const data = await res.json();
+        setGstinValid(data.valid === true);
+        setGstinData(data.valid ? data.data : null);
+      } catch {
+        setGstinValid(null);
+      }
+      setGstinChecking(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [form.supplierGstin]);
 
   // -----------------------------------------------------------------------
   // Form helpers
@@ -963,8 +991,35 @@ export default function NewExpensePage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <label className="text-xs font-medium">Supplier GSTIN</label>
-                          <Input value={form.supplierGstin} onChange={(e) => updateField("supplierGstin", e.target.value)}
-                            placeholder="e.g. 27AABCU9603R1ZM" className="h-9" />
+                          <div className="relative">
+                            <Input value={form.supplierGstin} onChange={(e) => updateField("supplierGstin", e.target.value)}
+                              placeholder="e.g. 27AABCU9603R1ZM" className="h-9 pr-8" />
+                            {gstinChecking && (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2" />
+                            )}
+                            {!gstinChecking && gstinValid === true && (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 absolute right-2.5 top-1/2 -translate-y-1/2" />
+                            )}
+                            {!gstinChecking && gstinValid === false && (
+                              <XCircle className="w-3.5 h-3.5 text-red-500 absolute right-2.5 top-1/2 -translate-y-1/2" />
+                            )}
+                          </div>
+                          {gstinValid === true && gstinData && (
+                            <div className="bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-200 dark:border-emerald-500/20 rounded px-2.5 py-1.5 text-[11px] space-y-0.5">
+                              <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-medium">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Verified via CIGNET
+                              </div>
+                              <p className="text-emerald-600/80 dark:text-emerald-400/70">{gstinData.tradeName || gstinData.legalName}</p>
+                              <p className="text-emerald-600/60 dark:text-emerald-400/50">{gstinData.stateName} ({gstinData.registrationType})</p>
+                            </div>
+                          )}
+                          {gstinValid === false && form.supplierGstin.length >= 15 && (
+                            <p className="text-[11px] text-red-500 flex items-center gap-1">
+                              <XCircle className="w-3 h-3" />
+                              Invalid GSTIN format
+                            </p>
+                          )}
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-xs font-medium">HSN/SAC Code</label>

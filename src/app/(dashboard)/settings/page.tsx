@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,10 +35,377 @@ import {
   ArrowRightLeft,
   Clock,
   CheckCircle,
+  Zap,
+  FileStack,
+  ChevronDown,
+  Plus,
+  X,
+  Pencil,
+  Tag,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+
+interface AuditLogEntry {
+  id: string;
+  timestamp: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  userId: string;
+  userName: string;
+  changes: Record<string, { old: any; new: any }> | null;
+  metadata: Record<string, any> | null;
+  ipAddress: string;
+}
+
+// =============================================================================
+// Expense Category Manager (inline component for Modules tab)
+// =============================================================================
+
+interface ExpenseCategorySub {
+  code: string;
+  label: string;
+  glPrefix?: string;
+}
+
+interface ExpenseCategoryItem {
+  id: string;
+  code: string;
+  label: string;
+  icon: string;
+  color: string;
+  isActive: boolean;
+  sortOrder: number;
+  subcategories: ExpenseCategorySub[];
+}
+
+function ExpenseCategoryManager() {
+  const [categories, setCategories] = useState<ExpenseCategoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editColor, setEditColor] = useState("");
+  const [editIcon, setEditIcon] = useState("");
+  const [newCatLabel, setNewCatLabel] = useState("");
+  const [newSubLabel, setNewSubLabel] = useState("");
+  const [newSubGl, setNewSubGl] = useState("");
+
+  const fetchCategories = useCallback(() => {
+    setLoading(true);
+    fetch("/api/v1/expense-categories")
+      .then((r) => r.json())
+      .then((data) => {
+        setCategories(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  async function toggleActive(cat: ExpenseCategoryItem) {
+    const res = await fetch("/api/v1/expense-categories", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: cat.id, isActive: !cat.isActive }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setCategories((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      toast.success(`${cat.label} ${!cat.isActive ? "activated" : "deactivated"}`);
+    }
+  }
+
+  async function saveEdit(cat: ExpenseCategoryItem) {
+    const res = await fetch("/api/v1/expense-categories", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cat.id,
+        label: editLabel.trim() || cat.label,
+        color: editColor.trim() || cat.color,
+        icon: editIcon.trim() || cat.icon,
+      }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setCategories((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setEditingId(null);
+      toast.success("Category updated");
+    }
+  }
+
+  async function addCategory() {
+    if (!newCatLabel.trim()) return;
+    const code = newCatLabel.trim().toUpperCase().replace(/\s+/g, "_").slice(0, 20);
+    const res = await fetch("/api/v1/expense-categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, label: newCatLabel.trim(), subcategories: [] }),
+    });
+    if (res.ok) {
+      const cat = await res.json();
+      setCategories((prev) => [...prev, cat]);
+      setNewCatLabel("");
+      toast.success("Category added");
+    }
+  }
+
+  async function addSubcategory(categoryId: string) {
+    if (!newSubLabel.trim()) return;
+    const code = newSubLabel.trim().toUpperCase().replace(/\s+/g, "_").slice(0, 30);
+    const res = await fetch("/api/v1/expense-categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "addSubcategory",
+        categoryId,
+        subcategory: {
+          code,
+          label: newSubLabel.trim(),
+          glPrefix: newSubGl.trim() || undefined,
+        },
+      }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setCategories((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setNewSubLabel("");
+      setNewSubGl("");
+      toast.success("Subcategory added");
+    }
+  }
+
+  async function removeSubcategory(categoryId: string, subCode: string) {
+    const res = await fetch("/api/v1/expense-categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "removeSubcategory", categoryId, subCode }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setCategories((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      toast.success("Subcategory removed");
+    }
+  }
+
+  function startEdit(cat: ExpenseCategoryItem) {
+    setEditingId(cat.id);
+    setEditLabel(cat.label);
+    setEditColor(cat.color);
+    setEditIcon(cat.icon);
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Tag className="w-4 h-4" />
+            Expense Categories
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground text-center py-6">Loading categories...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <Tag className="w-4 h-4" />
+          Expense Categories
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Configure categories and subcategories for expense classification
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Add new category */}
+        <div className="flex gap-2">
+          <Input
+            placeholder="New category name..."
+            value={newCatLabel}
+            onChange={(e) => setNewCatLabel(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addCategory()}
+            className="h-8 text-sm flex-1"
+          />
+          <Button size="sm" className="h-8" onClick={addCategory} disabled={!newCatLabel.trim()}>
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            Add
+          </Button>
+        </div>
+
+        {/* Category list */}
+        <div className="border rounded-lg divide-y">
+          {categories.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-6">No categories configured</p>
+          )}
+          {categories.map((cat) => (
+            <div key={cat.id}>
+              {/* Category row */}
+              <div className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/30">
+                {/* Expand toggle */}
+                <button
+                  onClick={() => setExpandedId(expandedId === cat.id ? null : cat.id)}
+                  className="shrink-0"
+                >
+                  <ChevronDown
+                    className={`w-4 h-4 text-muted-foreground transition-transform ${
+                      expandedId === cat.id ? "rotate-0" : "-rotate-90"
+                    }`}
+                  />
+                </button>
+
+                {/* Color dot */}
+                <div
+                  className="w-3 h-3 rounded-full shrink-0 border"
+                  style={{ backgroundColor: cat.color || "#6b7280" }}
+                />
+
+                {/* Label (or edit mode) */}
+                {editingId === cat.id ? (
+                  <div className="flex-1 flex items-center gap-2">
+                    <Input
+                      value={editLabel}
+                      onChange={(e) => setEditLabel(e.target.value)}
+                      className="h-7 text-xs flex-1"
+                      placeholder="Label"
+                    />
+                    <Input
+                      value={editColor}
+                      onChange={(e) => setEditColor(e.target.value)}
+                      className="h-7 text-xs w-24"
+                      placeholder="Color (#hex)"
+                    />
+                    <Input
+                      value={editIcon}
+                      onChange={(e) => setEditIcon(e.target.value)}
+                      className="h-7 text-xs w-28"
+                      placeholder="Icon name"
+                    />
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => saveEdit(cat)}
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs"
+                      onClick={() => setEditingId(null)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium flex-1">{cat.label}</p>
+                    <Badge variant="outline" className="text-[9px] shrink-0">
+                      {cat.subcategories.length} sub
+                    </Badge>
+                    <button onClick={() => startEdit(cat)} className="shrink-0">
+                      <Pencil className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                    </button>
+                    <Switch
+                      checked={cat.isActive}
+                      onCheckedChange={() => toggleActive(cat)}
+                    />
+                  </>
+                )}
+              </div>
+
+              {/* Expanded subcategories */}
+              {expandedId === cat.id && (
+                <div className="bg-muted/20 px-3 py-2 border-t">
+                  <div className="ml-7 space-y-1.5">
+                    {cat.subcategories.length === 0 && (
+                      <p className="text-[11px] text-muted-foreground py-1">No subcategories</p>
+                    )}
+                    {cat.subcategories.map((sub) => (
+                      <div
+                        key={sub.code}
+                        className="flex items-center gap-3 py-1 px-2 rounded hover:bg-muted/50 group"
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 shrink-0" />
+                        <p className="text-xs flex-1">{sub.label}</p>
+                        {sub.glPrefix && (
+                          <Badge variant="outline" className="text-[8px] font-mono">
+                            GL: {sub.glPrefix}
+                          </Badge>
+                        )}
+                        <button
+                          onClick={() => removeSubcategory(cat.id, sub.code)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                        >
+                          <X className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Add subcategory row */}
+                    <div className="flex items-center gap-2 pt-1.5 border-t border-dashed mt-1.5">
+                      <Input
+                        placeholder="Subcategory name"
+                        value={expandedId === cat.id ? newSubLabel : ""}
+                        onChange={(e) => setNewSubLabel(e.target.value)}
+                        className="h-7 text-xs flex-1"
+                        onKeyDown={(e) => e.key === "Enter" && addSubcategory(cat.id)}
+                      />
+                      <Input
+                        placeholder="GL Prefix"
+                        value={expandedId === cat.id ? newSubGl : ""}
+                        onChange={(e) => setNewSubGl(e.target.value)}
+                        className="h-7 text-xs w-28"
+                        onKeyDown={(e) => e.key === "Enter" && addSubcategory(cat.id)}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => addSubcategory(cat.id)}
+                        disabled={!newSubLabel.trim()}
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function SettingsPage() {
   const { config: modules, updateConfig } = useModuleConfig();
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+
+  const fetchAuditLogs = useCallback(() => {
+    setAuditLoading(true);
+    fetch("/api/v1/audit?limit=50")
+      .then((res) => res.json())
+      .then((data) => setAuditLogs(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setAuditLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetchAuditLogs();
+  }, [fetchAuditLogs]);
 
   return (
     <div className="space-y-6 animate-in">
@@ -188,6 +556,99 @@ export default function SettingsPage() {
               ))}
             </CardContent>
           </Card>
+
+          {/* Payment Processing Mode — only when Expense Management is ON */}
+          {modules.expenseManagement && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Zap className="w-4 h-4" />
+                  Payment Processing Mode
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Choose how reimbursement payments are processed
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <button
+                  onClick={() => {
+                    updateConfig({ paymentMode: "REALTIME" });
+                    toast.success("Payment mode set to Real-time API");
+                  }}
+                  className={`w-full flex items-start gap-4 p-4 rounded-lg border-2 transition-colors text-left ${
+                    modules.paymentMode === "REALTIME"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-muted-foreground/30"
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                    modules.paymentMode === "REALTIME" ? "bg-primary/10" : "bg-muted"
+                  }`}>
+                    <Zap className={`w-5 h-5 ${modules.paymentMode === "REALTIME" ? "text-primary" : "text-muted-foreground"}`} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">Real-time API</p>
+                      {modules.paymentMode === "REALTIME" && (
+                        <Badge variant="success" className="text-[9px]">Active</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Process reimbursements instantly via bank API integration (NEFT/RTGS/IMPS)
+                    </p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
+                    modules.paymentMode === "REALTIME" ? "border-primary" : "border-muted-foreground/30"
+                  }`}>
+                    {modules.paymentMode === "REALTIME" && (
+                      <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                    )}
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => {
+                    updateConfig({ paymentMode: "BATCH" });
+                    toast.success("Payment mode set to Batch File");
+                  }}
+                  className={`w-full flex items-start gap-4 p-4 rounded-lg border-2 transition-colors text-left ${
+                    modules.paymentMode === "BATCH"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-muted-foreground/30"
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                    modules.paymentMode === "BATCH" ? "bg-primary/10" : "bg-muted"
+                  }`}>
+                    <FileStack className={`w-5 h-5 ${modules.paymentMode === "BATCH" ? "text-primary" : "text-muted-foreground"}`} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">Batch File</p>
+                      {modules.paymentMode === "BATCH" && (
+                        <Badge variant="success" className="text-[9px]">Active</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Generate NEFT payment files for bulk processing through bank portal
+                    </p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
+                    modules.paymentMode === "BATCH" ? "border-primary" : "border-muted-foreground/30"
+                  }`}>
+                    {modules.paymentMode === "BATCH" && (
+                      <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                    )}
+                  </div>
+                </button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Expense Categories — only when Expense Management is ON */}
+          {modules.expenseManagement && (
+            <ExpenseCategoryManager />
+          )}
         </TabsContent>
 
         {/* Users */}
@@ -507,44 +968,118 @@ export default function SettingsPage() {
         <TabsContent value="audit" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <GitBranch className="w-4 h-4" />
-                Audit Trail
-              </CardTitle>
-              <CardDescription className="text-xs">Complete history of all actions in the system</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <GitBranch className="w-4 h-4" />
+                    Audit Trail
+                  </CardTitle>
+                  <CardDescription className="text-xs">Complete history of all actions in the system</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={fetchAuditLogs}>
+                  Refresh
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {[
-                  { action: "Card frozen", entity: "Card •1005", user: "Rajesh Kumar", role: "System Admin", time: "2 min ago", type: "CARD" },
-                  { action: "Expense approved", entity: "EXP-2026-0003", user: "Deepa Nair", role: "Dept Manager", time: "15 min ago", type: "APPROVAL" },
-                  { action: "Policy updated", entity: "Meal Expense Cap", user: "Arun Patel", role: "Finance Controller", time: "1 hour ago", type: "POLICY" },
-                  { action: "Employee onboarded", entity: "Rahul Verma (BFS009)", user: "Priya Sharma", role: "Company Admin", time: "2 hours ago", type: "EMPLOYEE" },
-                  { action: "Report submitted", entity: "EXP-2026-0005", user: "Vikram Singh", role: "Employee", time: "3 hours ago", type: "REPORT" },
-                  { action: "Card limit changed", entity: "Card •1003", user: "Arun Patel", role: "Finance Controller", time: "5 hours ago", type: "CARD" },
-                  { action: "DOA delegation created", entity: "Rajesh → Priya", user: "Rajesh Kumar", role: "System Admin", time: "1 day ago", type: "DOA" },
-                  { action: "Reimbursement processed", entity: "EXP-2026-0001", user: "Arun Patel", role: "Finance Controller", time: "1 day ago", type: "PAYMENT" },
-                ].map((log, i) => (
-                  <div key={i} className="flex items-center gap-3 py-1.5">
-                    <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm">
-                        <span className="font-medium">{log.action}</span>
-                        {" — "}
-                        <span className="text-muted-foreground">{log.entity}</span>
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{log.user}</span>
-                        <Badge variant="outline" className="text-[8px]">{log.role}</Badge>
+              {auditLoading ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Loading audit logs...</p>
+              ) : auditLogs.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left pb-2 font-medium text-muted-foreground">Timestamp</th>
+                        <th className="text-left pb-2 font-medium text-muted-foreground">Entity Type</th>
+                        <th className="text-left pb-2 font-medium text-muted-foreground">Entity ID</th>
+                        <th className="text-left pb-2 font-medium text-muted-foreground">Action</th>
+                        <th className="text-left pb-2 font-medium text-muted-foreground">User</th>
+                        <th className="text-left pb-2 font-medium text-muted-foreground">Changes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {auditLogs.map((log) => (
+                        <tr key={log.id} className="border-b last:border-0 hover:bg-muted/50">
+                          <td className="py-2 pr-3 whitespace-nowrap">
+                            {new Date(log.timestamp).toLocaleString("en-IN", {
+                              day: "2-digit",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              second: "2-digit",
+                            })}
+                          </td>
+                          <td className="py-2 pr-3">
+                            <Badge variant="outline" className="text-[9px]">{log.entityType}</Badge>
+                          </td>
+                          <td className="py-2 pr-3 font-mono text-[10px]">{log.entityId}</td>
+                          <td className="py-2 pr-3">
+                            <Badge
+                              variant={
+                                log.action === "CREATE" ? "success"
+                                  : log.action === "APPROVE" ? "success"
+                                  : log.action === "REJECT" ? "destructive"
+                                  : "outline"
+                              }
+                              className="text-[9px]"
+                            >
+                              {log.action}
+                            </Badge>
+                          </td>
+                          <td className="py-2 pr-3">{log.userName}</td>
+                          <td className="py-2 max-w-[200px] truncate text-muted-foreground">
+                            {log.changes
+                              ? Object.entries(log.changes)
+                                  .map(([k, v]) => `${k}: ${JSON.stringify(v.old)} → ${JSON.stringify(v.new)}`)
+                                  .join(", ")
+                              : log.metadata
+                                ? Object.entries(log.metadata)
+                                    .map(([k, v]) => `${k}: ${v}`)
+                                    .join(", ")
+                                : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    No audit log entries yet. Actions performed in the system will appear here.
+                  </p>
+                  {/* Fallback demo data for initial display */}
+                  {[
+                    { action: "Card frozen", entity: "Card *1005", user: "Rajesh Kumar", role: "System Admin", time: "2 min ago", type: "CARD" },
+                    { action: "Expense approved", entity: "EXP-2026-0003", user: "Deepa Nair", role: "Dept Manager", time: "15 min ago", type: "APPROVAL" },
+                    { action: "Policy updated", entity: "Meal Expense Cap", user: "Arun Patel", role: "Finance Controller", time: "1 hour ago", type: "POLICY" },
+                    { action: "Employee onboarded", entity: "Rahul Verma (BFS009)", user: "Priya Sharma", role: "Company Admin", time: "2 hours ago", type: "EMPLOYEE" },
+                    { action: "Report submitted", entity: "EXP-2026-0005", user: "Vikram Singh", role: "Employee", time: "3 hours ago", type: "REPORT" },
+                    { action: "Card limit changed", entity: "Card *1003", user: "Arun Patel", role: "Finance Controller", time: "5 hours ago", type: "CARD" },
+                    { action: "DOA delegation created", entity: "Rajesh to Priya", user: "Rajesh Kumar", role: "System Admin", time: "1 day ago", type: "DOA" },
+                    { action: "Reimbursement processed", entity: "EXP-2026-0001", user: "Arun Patel", role: "Finance Controller", time: "1 day ago", type: "PAYMENT" },
+                  ].map((log, i) => (
+                    <div key={i} className="flex items-center gap-3 py-1.5">
+                      <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm">
+                          <span className="font-medium">{log.action}</span>
+                          {" — "}
+                          <span className="text-muted-foreground">{log.entity}</span>
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{log.user}</span>
+                          <Badge variant="outline" className="text-[8px]">{log.role}</Badge>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <Badge variant="outline" className="text-[9px]">{log.type}</Badge>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{log.time}</p>
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <Badge variant="outline" className="text-[9px]">{log.type}</Badge>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{log.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -119,6 +119,30 @@ function getDemoAuditTrail(expense: { merchantName: string; amount: number; cate
   ];
 }
 
+interface RealAuditEntry {
+  id: string;
+  timestamp: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  userName: string;
+  changes: Record<string, { old: any; new: any }> | null;
+  metadata: Record<string, any> | null;
+}
+
+function useExpenseAuditLog(expenseId: string) {
+  const [realEntries, setRealEntries] = useState<RealAuditEntry[]>([]);
+  useEffect(() => {
+    fetch(`/api/v1/audit?entityType=EXPENSE&entityId=${expenseId}&limit=20`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setRealEntries(data);
+      })
+      .catch(() => {});
+  }, [expenseId]);
+  return realEntries;
+}
+
 function getDemoApprovalHistory(expense: { policyStatus: string; employeeName: string; date: string }) {
   const d = new Date(expense.date);
   const steps: { label: string; date: string | null; by: string | null; comment: string | null; status: "done" | "pending" }[] = [
@@ -189,8 +213,21 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ expens
   // Demo data
   const policyChecks = getDemoPolicyChecks(expense);
   const score = policyScore(expense.policyStatus);
-  const auditTrail = getDemoAuditTrail(expense);
+  const demoAuditTrail = getDemoAuditTrail(expense);
+  const realAuditEntries = useExpenseAuditLog(expenseId);
   const approvalHistory = getDemoApprovalHistory(expense);
+
+  // Combine real audit entries with demo data: real entries first, then demo fallback
+  const auditTrail = realAuditEntries.length > 0
+    ? [
+        ...realAuditEntries.map((entry: RealAuditEntry) => ({
+          action: `${entry.action}${entry.changes ? `: ${Object.keys(entry.changes).join(", ")}` : ""}${entry.metadata ? ` (${Object.entries(entry.metadata).map(([k, v]) => `${k}: ${v}`).join(", ")})` : ""}`,
+          user: entry.userName,
+          timestamp: entry.timestamp,
+        })),
+        ...demoAuditTrail,
+      ]
+    : demoAuditTrail;
 
   // GST computations
   const gst = expense.gstDetails;

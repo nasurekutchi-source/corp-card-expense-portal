@@ -15,6 +15,7 @@ export interface ModuleConfig {
   virtualCardIssuance: boolean;
   rbiLrs: boolean;
   gstCompliance: boolean;
+  paymentMode: "REALTIME" | "BATCH";
 }
 
 const defaultConfig: ModuleConfig = {
@@ -29,6 +30,7 @@ const defaultConfig: ModuleConfig = {
   virtualCardIssuance: true,
   rbiLrs: false,
   gstCompliance: false,
+  paymentMode: "BATCH" as const,
 };
 
 interface ModuleConfigContextValue {
