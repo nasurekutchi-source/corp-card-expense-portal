@@ -20,7 +20,6 @@ import {
   demoEmployees,
   demoCards,
   demoTransactions,
-  demoExpenseReports,  // still used by buildDemoReimbursements (kept for reference)
   demoPolicies,
   demoCardControlPolicies,
   doaAuthorityLevels as demoDoaAuthorityLevels,
@@ -467,9 +466,9 @@ export interface Receipt {
   mimeType: string;
   base64Data: string;
   uploadedAt: string;
-  ocrData: Record<string, any>;
-  ocrConfidence: Record<string, number>;
-  ocrStatus: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  ocrData: Record<string, any> | null;
+  ocrConfidence: Record<string, number> | null;
+  ocrStatus: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "DEMO";
   source: "UPLOAD" | "CAMERA" | "EMAIL";
 }
 
@@ -780,52 +779,6 @@ function buildDefaultExpenseCategories(): ExpenseCategoryConfig[] {
 }
 
 // =============================================================================
-// Build Demo Reimbursements from Expense Reports
-// =============================================================================
-
-function buildDemoReimbursements(): Reimbursement[] {
-  const reports = deepClone(demoExpenseReports) as any[];
-  const employees = deepClone(demoEmployees) as any[];
-  const departments = deepClone(demoDepartments) as any[];
-  const banks = ["HDFC Bank", "ICICI Bank", "SBI", "Axis Bank", "Kotak Mahindra"];
-  const ifscCodes = ["HDFC0001234", "ICIC0005678", "SBIN0009012", "UTIB0003456", "KKBK0007890"];
-
-  return reports
-    .filter((r: any) => ["APPROVED", "PROCESSING", "PAID"].includes(r.status))
-    .map((r: any, i: number) => {
-      const emp = employees.find((e: any) => e.id === r.employeeId);
-      const dept = emp ? departments.find((d: any) => d.id === emp.departmentId) : null;
-      const tds = i % 3 === 0 ? Math.round(r.totalAmount * 0.1) : 0;
-      const statusMap: Record<string, "PENDING" | "INITIATED" | "PROCESSING" | "PAID"> = {
-        APPROVED: "PENDING",
-        PROCESSING: "PROCESSING",
-        PAID: "PAID",
-      };
-      return {
-        id: `reimb-${i + 1}`,
-        employeeId: r.employeeId,
-        employeeName: r.employeeName,
-        department: dept?.name || r.department || "",
-        expenseReportId: r.id,
-        reportNumber: r.reportNumber,
-        grossAmount: r.totalAmount,
-        tdsAmount: tds,
-        netAmount: r.totalAmount - tds,
-        status: statusMap[r.status] || "PENDING",
-        paymentMethod: ["NEFT", "IMPS", "UPI"][i % 3],
-        paymentRef: r.status === "PAID" ? `NEFT${Date.now()}${i}` : "",
-        bankAccount: `XXXX${String(1000 + i * 111).slice(-4)}`,
-        ifscCode: ifscCodes[i % ifscCodes.length],
-        bankName: banks[i % banks.length],
-        initiatedAt: ["PROCESSING", "PAID"].includes(statusMap[r.status] || "") ? "2026-02-19T10:00:00Z" : null,
-        processedAt: statusMap[r.status] === "PAID" ? "2026-02-20T14:00:00Z" : null,
-        paidAt: statusMap[r.status] === "PAID" ? "2026-02-21T09:00:00Z" : null,
-        failureReason: null,
-      };
-    });
-}
-
-// =============================================================================
 // Build Demo GSTIN Cache (CIGNET GSP Integration)
 // =============================================================================
 
@@ -958,9 +911,14 @@ function buildInitialStore(): Store {
 
 // =============================================================================
 // Singleton Module-Level State
+// Attached to globalThis to survive Next.js dev-mode hot-reload re-evaluations
 // =============================================================================
 
-let store: Store = buildInitialStore();
+const globalForStore = globalThis as unknown as { __corpCardStore?: Store };
+if (!globalForStore.__corpCardStore) {
+  globalForStore.__corpCardStore = buildInitialStore();
+}
+let store: Store = globalForStore.__corpCardStore;
 
 // =============================================================================
 // Module Configuration (persists in-memory)
@@ -1015,6 +973,7 @@ export function getStore(): Store {
 
 export function resetStore(): void {
   store = buildInitialStore();
+  globalForStore.__corpCardStore = store;
 }
 
 export function exportStore() {
@@ -1776,6 +1735,11 @@ export function addExpense(data: Partial<Expense>): Expense {
       igst: 0,
     };
   }
+  // Resolve employee name from employee ID if not provided
+  if (employeeId && !employeeName) {
+    const emp = getEmployee(employeeId);
+    if (emp) employeeName = `${emp.firstName} ${emp.lastName}`;
+  }
   // Resolve cost center name
   let costCenterName = data.costCenterName || "";
   if (data.costCenterId && !data.costCenterName) {
@@ -2037,15 +2001,29 @@ export function updateApproval(
   const approval = store.approvals[idx];
   const reportIdx = store.expenseReports.findIndex((r) => r.id === approval.entityId);
   if (reportIdx !== -1) {
+    const report = store.expenseReports[reportIdx];
     if (data.status === "APPROVED") {
       store.expenseReports[reportIdx] = {
-        ...store.expenseReports[reportIdx],
+        ...report,
         status: "APPROVED",
         approvedAt: new Date().toISOString(),
       };
+      // Automatically create a reimbursement record when approved
+      addReimbursement({
+        employeeId: report.employeeId,
+        employeeName: report.employeeName,
+        department: report.department,
+        expenseReportId: report.id,
+        reportNumber: report.reportNumber,
+        grossAmount: report.totalAmount,
+        tdsAmount: 0,
+        netAmount: report.totalAmount,
+        status: "PENDING",
+        paymentMethod: "NEFT",
+      });
     } else if (data.status === "REJECTED") {
       store.expenseReports[reportIdx] = {
-        ...store.expenseReports[reportIdx],
+        ...report,
         status: "REJECTED",
       };
     }

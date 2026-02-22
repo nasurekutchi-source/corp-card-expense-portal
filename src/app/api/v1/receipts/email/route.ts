@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     results.push({
       receiptId: receipt.id,
       expenseId: expense.id,
-      ocrData: receipt.ocrData,
+      ocrData: receipt.ocrData || {},
     });
   }
 

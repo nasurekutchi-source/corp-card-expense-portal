@@ -396,20 +396,29 @@ export default function NewExpensePage() {
       const receipt = await res.json();
 
       setReceiptId(receipt.id);
-      setOcrFields(receipt.ocrData);
-      setOcrConfidence(receipt.ocrConfidence);
 
-      // Mark receipt as uploaded but do NOT auto-fill form with simulated data.
-      // OCR results are stored for user review — user decides what to apply.
+      // Only set OCR fields if the API actually returned real data (not demo mode)
+      if (receipt.ocrData && receipt.ocrStatus !== "DEMO") {
+        setOcrFields(receipt.ocrData);
+        setOcrConfidence(receipt.ocrConfidence);
+      } else {
+        setOcrFields(null);
+        setOcrConfidence(null);
+      }
+
       setForm((prev) => ({
         ...prev,
         hasReceipt: true,
         receiptFilename: file.name,
       }));
 
-      const fieldCount = Object.keys(receipt.ocrData).length;
-      const confidence = Math.round((receipt.ocrConfidence?.overall || 0) * 100);
-      toast.success(`Receipt uploaded — OCR extracted ${fieldCount} fields (${confidence}% confidence). Review and apply below.`);
+      if (receipt.ocrData && receipt.ocrStatus !== "DEMO") {
+        const fieldCount = Object.keys(receipt.ocrData).length;
+        const confidence = Math.round((receipt.ocrConfidence?.overall || 0) * 100);
+        toast.success(`Receipt uploaded — OCR extracted ${fieldCount} fields (${confidence}% confidence). Review and apply below.`);
+      } else {
+        toast.success("Receipt uploaded successfully. Please fill in the expense details manually.");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Receipt upload failed");
       setReceiptPreview(null);
@@ -714,9 +723,11 @@ export default function NewExpensePage() {
                               {ocrFields && <> &mdash; OCR extracted {Object.keys(ocrFields).length} fields</>}
                             </p>
                           </div>
-                          <Badge variant="outline" className="text-[9px] shrink-0">
-                            <Sparkles className="w-3 h-3 mr-0.5" />AI Extracted
-                          </Badge>
+                          {ocrFields ? (
+                            <Badge variant="outline" className="text-[9px] shrink-0">
+                              <Sparkles className="w-3 h-3 mr-0.5" />AI Extracted
+                            </Badge>
+                          ) : null}
                           <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700 shrink-0" onClick={clearReceipt}>
                             <XCircle className="w-4 h-4" />
                           </Button>
