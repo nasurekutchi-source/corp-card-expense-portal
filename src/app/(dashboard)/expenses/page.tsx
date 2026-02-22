@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,25 @@ export default function ExpensesPage() {
     totalAmount: expenses.reduce((sum, e) => sum + e.amount, 0),
     withReceipt: expenses.filter((e) => e.hasReceipt).length,
   };
+
+  // Duplicate detection flags (client-side check across loaded expenses)
+  const duplicateFlags = useMemo(() => {
+    const flagged = new Set<string>();
+    for (let i = 0; i < expenses.length; i++) {
+      for (let j = i + 1; j < expenses.length; j++) {
+        const a = expenses[i], b = expenses[j];
+        const amountMatch = Math.abs(a.amount - b.amount) / Math.max(a.amount, 1) < 0.01;
+        const merchantMatch = (a.merchantName || "").toLowerCase() === (b.merchantName || "").toLowerCase();
+        const dateA = new Date(a.date).getTime(), dateB = new Date(b.date).getTime();
+        const dateClose = Math.abs(dateA - dateB) < 3 * 86400000;
+        if (amountMatch && merchantMatch && dateClose) {
+          flagged.add(a.id);
+          flagged.add(b.id);
+        }
+      }
+    }
+    return flagged;
+  }, [expenses]);
 
   return (
     <div className="space-y-6 animate-in">
@@ -147,7 +166,12 @@ export default function ExpensesPage() {
                 {/* Details */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium truncate">{expense.merchantName}</p>
+                    <p className="text-sm font-medium truncate">
+                      {expense.merchantName}
+                      {duplicateFlags.has(expense.id) && (
+                        <span title="Potential duplicate"><AlertTriangle className="w-3.5 h-3.5 text-amber-500 inline ml-1" /></span>
+                      )}
+                    </p>
                     {expense.hasReceipt && <Camera className="w-3 h-3 text-emerald-500" />}
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">

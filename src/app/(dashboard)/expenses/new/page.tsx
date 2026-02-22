@@ -177,6 +177,10 @@ export default function NewExpensePage() {
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [splitMode, setSplitMode] = useState(false);
 
+  // Duplicate detection state
+  const [duplicates, setDuplicates] = useState<any[]>([]);
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+
   // Receipt upload state
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -201,6 +205,33 @@ export default function NewExpensePage() {
     setPolicies(getActivePolicies());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Debounced duplicate detection when amount + merchant change
+  useEffect(() => {
+    if (!form.amount || !form.merchantName || parseFloat(form.amount) === 0) {
+      setDuplicates([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setCheckingDuplicates(true);
+      try {
+        const params = new URLSearchParams({
+          amount: form.amount,
+          merchant: form.merchantName,
+          date: form.date || new Date().toISOString(),
+        });
+        const res = await fetch(`/api/v1/expenses/duplicates?${params}`);
+        if (res.ok) {
+          const data = await res.json();
+          setDuplicates(data);
+        }
+      } catch {
+        // silently ignore — duplicate check is best-effort
+      }
+      setCheckingDuplicates(false);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [form.amount, form.merchantName, form.date]);
 
   // -----------------------------------------------------------------------
   // Form helpers
@@ -1042,6 +1073,39 @@ export default function NewExpensePage() {
                         {form.attendees.split(",").filter((a) => a.trim()).length} attendee(s) listed
                       </p>
                     )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Duplicate detection warning */}
+              {duplicates.length > 0 && (
+                <Card className="border-amber-200 bg-amber-50">
+                  <CardContent className="pt-4">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-amber-800">
+                          Potential Duplicate{duplicates.length > 1 ? "s" : ""} Detected
+                        </p>
+                        <p className="text-xs text-amber-600 mt-1">
+                          {duplicates.length} similar expense{duplicates.length > 1 ? "s" : ""} found. Please review before submitting.
+                        </p>
+                        <div className="mt-2 space-y-1">
+                          {duplicates.map((dup: any) => (
+                            <div key={dup.expenseId} className="flex items-center justify-between text-xs bg-white rounded px-2 py-1.5 border border-amber-100">
+                              <div>
+                                <span className="font-medium">{dup.expense.merchantName}</span>
+                                <span className="text-muted-foreground ml-2">{"\u20B9"}{dup.expense.amount.toLocaleString("en-IN")}</span>
+                                <span className="text-muted-foreground ml-2">{new Date(dup.expense.date).toLocaleDateString("en-IN")}</span>
+                              </div>
+                              <Badge variant={dup.matchScore >= 80 ? "destructive" : "outline"} className="text-[9px]">
+                                {dup.matchScore}% match
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               )}

@@ -12,6 +12,7 @@ const statusConfig: Record<string, { variant: "default" | "secondary" | "destruc
   IN_REVIEW: { variant: "warning", label: "In Review" },
   APPROVED: { variant: "success", label: "Approved" },
   REJECTED: { variant: "destructive", label: "Rejected" },
+  INITIATED: { variant: "info", label: "Initiated" },
   PROCESSING: { variant: "info", label: "Processing" },
   PAID: { variant: "success", label: "Paid" },
   FAILED: { variant: "destructive", label: "Failed" },
