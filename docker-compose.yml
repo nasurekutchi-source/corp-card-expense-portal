@@ -20,6 +20,8 @@ services:
       - MONGODB_URI=${MONGODB_URI:-}
       # Upstash Redis - set when ready
       - UPSTASH_REDIS_URL=${UPSTASH_REDIS_URL:-}
+      # Anthropic API - Claude Vision OCR (primary OCR engine)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     restart: unless-stopped
 
 volumes:

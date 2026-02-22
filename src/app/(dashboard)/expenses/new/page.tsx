@@ -953,25 +953,23 @@ export default function NewExpensePage() {
                         placeholder="Enter merchant name" className="h-9" />
                     </div>
 
-                    {/* Amount + Currency */}
+                    {/* Amount */}
                     <div className={`space-y-1.5 ${ocrAutoFilled.includes("amount") ? "border-l-2 border-blue-400 pl-2" : ""}`}>
                       <label className="text-xs font-medium flex items-center gap-1">
                         Amount <span className="text-red-500">*</span>
                         {ocrAutoFilled.includes("amount") && <Sparkles className="w-3 h-3 text-blue-500" />}
                       </label>
-                      <div className="flex gap-2">
-                        <select className={`${selectCls} w-20 shrink-0`} value={form.currency}
-                          onChange={(e) => updateField("currency", e.target.value)}>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                          {form.currency === "INR" ? "\u20B9" : form.currency === "USD" ? "$" : form.currency === "EUR" ? "\u20AC" : form.currency === "GBP" ? "\u00A3" : ""}
+                        </span>
+                        <Input type="number" className="pl-7 pr-16 h-9" value={form.amount}
+                          onChange={(e) => updateField("amount", e.target.value)}
+                          placeholder="0.00" min="0" step="0.01" />
+                        <select className="absolute right-1 top-1/2 -translate-y-1/2 h-7 text-xs border-0 bg-muted/60 rounded px-1.5 focus:outline-none"
+                          value={form.currency} onChange={(e) => updateField("currency", e.target.value)}>
                           {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
                         </select>
-                        <div className="relative flex-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                            {form.currency === "INR" ? "\u20B9" : form.currency === "USD" ? "$" : form.currency === "EUR" ? "\u20AC" : form.currency === "GBP" ? "\u00A3" : ""}
-                          </span>
-                          <Input type="number" className="pl-7 h-9" value={form.amount}
-                            onChange={(e) => updateField("amount", e.target.value)}
-                            placeholder="0.00" min="0" step="0.01" />
-                        </div>
                       </div>
                     </div>
 
