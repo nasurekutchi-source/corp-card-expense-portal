@@ -397,8 +397,9 @@ export default function NewExpensePage() {
 
       setReceiptId(receipt.id);
 
-      // Only set OCR fields if the API actually returned real data (not demo mode)
-      if (receipt.ocrData && receipt.ocrStatus !== "DEMO") {
+      // Set OCR fields if extraction was successful
+      const hasOcr = receipt.ocrData && receipt.ocrStatus === "COMPLETED";
+      if (hasOcr) {
         setOcrFields(receipt.ocrData);
         setOcrConfidence(receipt.ocrConfidence);
       } else {
@@ -406,18 +407,39 @@ export default function NewExpensePage() {
         setOcrConfidence(null);
       }
 
-      setForm((prev) => ({
-        ...prev,
-        hasReceipt: true,
-        receiptFilename: file.name,
-      }));
+      // Auto-fill form from OCR extracted data
+      setForm((prev: FormState) => {
+        const updated = { ...prev, hasReceipt: true, receiptFilename: file.name };
+        if (hasOcr) {
+          const ocr = receipt.ocrData;
+          if (ocr.merchantName) updated.merchantName = ocr.merchantName;
+          if (ocr.amount) updated.amount = String(ocr.amount);
+          if (ocr.date) updated.date = ocr.date;
+          if (ocr.category) updated.categoryCode = ocr.category;
+          if (ocr.subcategory) updated.subcategoryCode = ocr.subcategory;
+          if (ocr.gstin) updated.supplierGstin = ocr.gstin;
+          if (ocr.gstRate) updated.gstSlab = Number(ocr.gstRate);
+          // Track which fields were auto-filled
+          const filled: string[] = [];
+          if (ocr.merchantName) filled.push("merchantName");
+          if (ocr.amount) filled.push("amount");
+          if (ocr.date) filled.push("date");
+          if (ocr.category) filled.push("categoryCode");
+          if (ocr.gstin) filled.push("supplierGstin");
+          if (ocr.gstRate) filled.push("gstSlab");
+          setOcrAutoFilled(filled);
+          // Expand GST section if GSTIN was extracted
+          if (ocr.gstin || ocr.gstRate) setShowGst(true);
+        }
+        return updated;
+      });
 
-      if (receipt.ocrData && receipt.ocrStatus !== "DEMO") {
-        const fieldCount = Object.keys(receipt.ocrData).length;
+      if (hasOcr) {
+        const ocrKeys = Object.keys(receipt.ocrData).filter((k) => k !== "_rawText");
         const confidence = Math.round((receipt.ocrConfidence?.overall || 0) * 100);
-        toast.success(`Receipt uploaded — OCR extracted ${fieldCount} fields (${confidence}% confidence). Review and apply below.`);
+        toast.success(`Receipt scanned — extracted ${ocrKeys.length} fields (${confidence}% confidence). Review the auto-filled form.`);
       } else {
-        toast.success("Receipt uploaded successfully. Please fill in the expense details manually.");
+        toast.success("Receipt uploaded. OCR could not extract text — please fill in details manually.");
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Receipt upload failed");

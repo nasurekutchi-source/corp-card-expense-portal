@@ -2,7 +2,7 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat fontconfig font-noto
 
 # Install dependencies at build time (cached in Docker layer)
 COPY package.json package-lock.json* ./

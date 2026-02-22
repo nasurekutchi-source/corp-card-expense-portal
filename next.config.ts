@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["oracledb", "typeorm"],
+  serverExternalPackages: ["oracledb", "typeorm", "tesseract.js"],
   images: {
     remotePatterns: [
       {
