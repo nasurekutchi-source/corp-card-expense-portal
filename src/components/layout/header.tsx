@@ -108,8 +108,13 @@ export function Header() {
               <HelpCircle className="w-4 h-4 mr-2" /> Help & Support
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => signOut({ redirect: false }).then(() => window.location.href = "/login")} className="text-destructive">
-              <LogOut className="w-4 h-4 mr-2" /> Sign out
+            <DropdownMenuItem asChild>
+              <button
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                className="w-full text-destructive cursor-pointer"
+              >
+                <LogOut className="w-4 h-4 mr-2" /> Sign out
+              </button>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
