@@ -132,6 +132,126 @@ export const TDS_SECTIONS = [
   { code: "194A", label: "194A - Interest (other than securities)", rate: 10 },
 ] as const;
 
+// ==================== EXPENSE CATEGORIES (Industry Standard) ====================
+export interface ExpenseSubcategory {
+  code: string;
+  label: string;
+  glPrefix?: string;
+}
+
+export interface ExpenseCategory {
+  code: string;
+  label: string;
+  icon: string;
+  color: string;
+  subcategories: ExpenseSubcategory[];
+}
+
+export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  {
+    code: "TRAVEL", label: "Travel", icon: "Plane", color: "#3b82f6",
+    subcategories: [
+      { code: "TRAVEL_AIR", label: "Airfare", glPrefix: "4110" },
+      { code: "TRAVEL_HOTEL", label: "Hotel / Lodging", glPrefix: "4120" },
+      { code: "TRAVEL_GROUND", label: "Ground Transportation", glPrefix: "4130" },
+      { code: "TRAVEL_CAR_RENTAL", label: "Car Rental", glPrefix: "4140" },
+      { code: "TRAVEL_RAIL", label: "Rail / Metro", glPrefix: "4150" },
+      { code: "TRAVEL_MILEAGE", label: "Mileage Reimbursement", glPrefix: "4160" },
+      { code: "TRAVEL_VISA", label: "Visa / Immigration", glPrefix: "4170" },
+      { code: "TRAVEL_PER_DIEM", label: "Per Diem", glPrefix: "4180" },
+      { code: "TRAVEL_OTHER", label: "Travel - Other", glPrefix: "4190" },
+    ],
+  },
+  {
+    code: "MEALS", label: "Meals & Entertainment", icon: "UtensilsCrossed", color: "#f97316",
+    subcategories: [
+      { code: "MEALS_BUSINESS", label: "Business Meals", glPrefix: "4210" },
+      { code: "MEALS_CLIENT", label: "Client Entertainment", glPrefix: "4220" },
+      { code: "MEALS_TEAM", label: "Team Events", glPrefix: "4230" },
+      { code: "MEALS_WORKING", label: "Working Lunch / Dinner", glPrefix: "4240" },
+      { code: "MEALS_OTHER", label: "Meals - Other", glPrefix: "4290" },
+    ],
+  },
+  {
+    code: "OFFICE", label: "Office & Administrative", icon: "Building2", color: "#64748b",
+    subcategories: [
+      { code: "OFFICE_SUPPLIES", label: "Office Supplies", glPrefix: "4310" },
+      { code: "OFFICE_PRINTING", label: "Printing & Stationery", glPrefix: "4320" },
+      { code: "OFFICE_COURIER", label: "Courier & Shipping", glPrefix: "4330" },
+      { code: "OFFICE_POSTAGE", label: "Postage", glPrefix: "4340" },
+      { code: "OFFICE_FURNITURE", label: "Furniture & Fixtures", glPrefix: "4350" },
+      { code: "OFFICE_OTHER", label: "Office - Other", glPrefix: "4390" },
+    ],
+  },
+  {
+    code: "TECHNOLOGY", label: "Technology", icon: "Monitor", color: "#7c3aed",
+    subcategories: [
+      { code: "TECH_SOFTWARE", label: "Software & SaaS", glPrefix: "4410" },
+      { code: "TECH_HARDWARE", label: "Hardware & Equipment", glPrefix: "4420" },
+      { code: "TECH_MOBILE", label: "Mobile & Telecom", glPrefix: "4430" },
+      { code: "TECH_INTERNET", label: "Internet & Connectivity", glPrefix: "4440" },
+      { code: "TECH_CLOUD", label: "Cloud Services", glPrefix: "4450" },
+      { code: "TECH_OTHER", label: "Technology - Other", glPrefix: "4490" },
+    ],
+  },
+  {
+    code: "PROFESSIONAL", label: "Professional Services", icon: "Briefcase", color: "#6366f1",
+    subcategories: [
+      { code: "PROF_LEGAL", label: "Legal & Compliance", glPrefix: "4510" },
+      { code: "PROF_CONSULTING", label: "Consulting Fees", glPrefix: "4520" },
+      { code: "PROF_AUDIT", label: "Audit & Accounting", glPrefix: "4530" },
+      { code: "PROF_TRAINING", label: "Training & Development", glPrefix: "4540" },
+      { code: "PROF_RECRUITMENT", label: "Recruitment", glPrefix: "4550" },
+      { code: "PROF_OTHER", label: "Professional - Other", glPrefix: "4590" },
+    ],
+  },
+  {
+    code: "MARKETING", label: "Marketing & Sales", icon: "Megaphone", color: "#ec4899",
+    subcategories: [
+      { code: "MKT_ADVERTISING", label: "Advertising & Promotion", glPrefix: "4610" },
+      { code: "MKT_EVENTS", label: "Events & Conferences", glPrefix: "4620" },
+      { code: "MKT_GIFTS", label: "Client Gifts & Giveaways", glPrefix: "4630" },
+      { code: "MKT_SPONSORSHIP", label: "Sponsorship", glPrefix: "4640" },
+      { code: "MKT_OTHER", label: "Marketing - Other", glPrefix: "4690" },
+    ],
+  },
+  {
+    code: "FACILITIES", label: "Facilities & Infrastructure", icon: "Home", color: "#14b8a6",
+    subcategories: [
+      { code: "FAC_RENT", label: "Rent & Lease", glPrefix: "4710" },
+      { code: "FAC_UTILITIES", label: "Utilities", glPrefix: "4720" },
+      { code: "FAC_MAINTENANCE", label: "Maintenance & Repairs", glPrefix: "4730" },
+      { code: "FAC_SECURITY", label: "Security", glPrefix: "4740" },
+      { code: "FAC_OTHER", label: "Facilities - Other", glPrefix: "4790" },
+    ],
+  },
+  {
+    code: "EMPLOYEE", label: "Employee Benefits", icon: "Heart", color: "#f43f5e",
+    subcategories: [
+      { code: "EMP_INSURANCE", label: "Insurance", glPrefix: "4810" },
+      { code: "EMP_WELLNESS", label: "Health & Wellness", glPrefix: "4820" },
+      { code: "EMP_RELOCATION", label: "Relocation", glPrefix: "4830" },
+      { code: "EMP_EDUCATION", label: "Education Assistance", glPrefix: "4840" },
+      { code: "EMP_OTHER", label: "Benefits - Other", glPrefix: "4890" },
+    ],
+  },
+  {
+    code: "MISC", label: "Miscellaneous", icon: "MoreHorizontal", color: "#78716c",
+    subcategories: [
+      { code: "MISC_DUES", label: "Dues & Memberships", glPrefix: "4910" },
+      { code: "MISC_BOOKS", label: "Books & Publications", glPrefix: "4920" },
+      { code: "MISC_CHARITY", label: "Charitable Donations", glPrefix: "4930" },
+      { code: "MISC_BANK", label: "Bank Charges & Fees", glPrefix: "4940" },
+      { code: "MISC_OTHER", label: "Miscellaneous", glPrefix: "4990" },
+    ],
+  },
+];
+
+// Flat list of all subcategory labels for quick access
+export const ALL_EXPENSE_SUBCATEGORIES = EXPENSE_CATEGORIES.flatMap((cat) =>
+  cat.subcategories.map((sub) => ({ ...sub, parentCode: cat.code, parentLabel: cat.label }))
+);
+
 // Demo credentials
 export const DEMO_USERS = [
   { email: "admin@corpcardpro.com", password: "admin123", role: "SYSTEM_ADMIN", name: "Rajesh Kumar" },

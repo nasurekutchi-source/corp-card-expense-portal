@@ -8,6 +8,7 @@
 // =============================================================================
 
 import { generateId } from "./utils";
+import { EXPENSE_CATEGORIES } from "./constants";
 import {
   demoBankInstitutions,
   demoPrograms,
@@ -567,6 +568,23 @@ export interface ApprovalFilters {
   search?: string;
 }
 
+export interface ExpenseCategorySubcategory {
+  code: string;
+  label: string;
+  glPrefix?: string;
+}
+
+export interface ExpenseCategoryConfig {
+  id: string;
+  code: string;
+  label: string;
+  icon: string;
+  color: string;
+  isActive: boolean;
+  sortOrder: number;
+  subcategories: ExpenseCategorySubcategory[];
+}
+
 // -- Store aggregate --
 
 export interface Store {
@@ -595,6 +613,7 @@ export interface Store {
   disputes: Dispute[];
   detectedSubscriptions: DetectedSubscription[];
   scheduledCardActions: ScheduledCardAction[];
+  expenseCategories: ExpenseCategoryConfig[];
 }
 
 // =============================================================================
@@ -603,6 +622,27 @@ export interface Store {
 
 function deepClone<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
+}
+
+// =============================================================================
+// Build Default Expense Categories from Constants
+// =============================================================================
+
+function buildDefaultExpenseCategories(): ExpenseCategoryConfig[] {
+  return EXPENSE_CATEGORIES.map((cat, index) => ({
+    id: `exp-cat-${cat.code.toLowerCase()}`,
+    code: cat.code,
+    label: cat.label,
+    icon: cat.icon,
+    color: cat.color,
+    isActive: true,
+    sortOrder: index,
+    subcategories: cat.subcategories.map((sub) => ({
+      code: sub.code,
+      label: sub.label,
+      glPrefix: sub.glPrefix,
+    })),
+  }));
 }
 
 // =============================================================================
@@ -636,6 +676,7 @@ function buildInitialStore(): Store {
     disputes: deepClone(demoDisputes) as Dispute[],
     detectedSubscriptions: deepClone(demoDetectedSubscriptions) as DetectedSubscription[],
     scheduledCardActions: deepClone(demoScheduledCardActions) as ScheduledCardAction[],
+    expenseCategories: buildDefaultExpenseCategories(),
   };
 }
 
@@ -2849,4 +2890,69 @@ export function findHierarchyNodeByCode(code: string): { type: "department" | "c
   if (cc) return { type: "costCenter", id: cc.id };
 
   return null;
+}
+
+// =============================================================================
+// Expense Category Configuration CRUD
+// =============================================================================
+
+export function getExpenseCategories(activeOnly = false): ExpenseCategoryConfig[] {
+  let cats = [...store.expenseCategories].sort((a, b) => a.sortOrder - b.sortOrder);
+  if (activeOnly) cats = cats.filter(c => c.isActive);
+  return cats;
+}
+
+export function getExpenseCategory(id: string): ExpenseCategoryConfig | undefined {
+  return store.expenseCategories.find(c => c.id === id);
+}
+
+export function addExpenseCategory(data: Partial<ExpenseCategoryConfig>): ExpenseCategoryConfig {
+  const maxOrder = store.expenseCategories.reduce((max, c) => Math.max(max, c.sortOrder), 0);
+  const cat: ExpenseCategoryConfig = {
+    id: data.id || `exp-cat-${generateId()}`,
+    code: data.code || "",
+    label: data.label || "",
+    icon: data.icon || "MoreHorizontal",
+    color: data.color || "#64748b",
+    isActive: data.isActive !== false,
+    sortOrder: data.sortOrder ?? maxOrder + 1,
+    subcategories: data.subcategories || [],
+  };
+  store.expenseCategories.push(cat);
+  return cat;
+}
+
+export function updateExpenseCategory(id: string, updates: Partial<ExpenseCategoryConfig>): ExpenseCategoryConfig | null {
+  const idx = store.expenseCategories.findIndex(c => c.id === id);
+  if (idx === -1) return null;
+  store.expenseCategories[idx] = { ...store.expenseCategories[idx], ...updates, id };
+  return store.expenseCategories[idx];
+}
+
+export function deleteExpenseCategory(id: string): boolean {
+  const idx = store.expenseCategories.findIndex(c => c.id === id);
+  if (idx === -1) return false;
+  store.expenseCategories.splice(idx, 1);
+  return true;
+}
+
+export function addSubcategory(categoryId: string, sub: ExpenseCategorySubcategory): ExpenseCategoryConfig | null {
+  const cat = store.expenseCategories.find(c => c.id === categoryId);
+  if (!cat) return null;
+  cat.subcategories.push(sub);
+  return cat;
+}
+
+export function removeSubcategory(categoryId: string, subCode: string): ExpenseCategoryConfig | null {
+  const cat = store.expenseCategories.find(c => c.id === categoryId);
+  if (!cat) return null;
+  cat.subcategories = cat.subcategories.filter(s => s.code !== subCode);
+  return cat;
+}
+
+export function reorderExpenseCategories(orderedIds: string[]): void {
+  orderedIds.forEach((id, index) => {
+    const cat = store.expenseCategories.find(c => c.id === id);
+    if (cat) cat.sortOrder = index;
+  });
 }

@@ -28,14 +28,36 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    if (!body.amount || !body.category || !body.employeeId) {
+    // Validate required fields
+    const missing: string[] = [];
+    if (!body.amount || Number(body.amount) <= 0) missing.push("amount");
+    if (!body.category) missing.push("category");
+    if (!body.employeeId) missing.push("employeeId");
+
+    if (missing.length > 0) {
       return NextResponse.json(
-        { error: "Missing required fields: amount, category, employeeId" },
+        { error: `Missing required fields: ${missing.join(", ")}` },
         { status: 400 }
       );
     }
 
-    const expense = addExpense(body);
+    // Validate amount is a valid number
+    const amount = Number(body.amount);
+    if (isNaN(amount) || amount <= 0) {
+      return NextResponse.json(
+        { error: "Amount must be a positive number" },
+        { status: 400 }
+      );
+    }
+
+    // Normalize the payload
+    const expenseData = {
+      ...body,
+      amount,
+      hasReceipt: body.hasReceipt === true,
+    };
+
+    const expense = addExpense(expenseData);
     return NextResponse.json({ data: expense }, { status: 201 });
   } catch (error) {
     return NextResponse.json(

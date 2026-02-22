@@ -285,7 +285,7 @@ export const demoTransactions = Array.from({ length: 200 }, (_, i) => {
 }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
 // ==================== EXPENSES ====================
-const expenseCategories = ["Travel - Air", "Travel - Hotel", "Travel - Ground", "Meals & Entertainment", "Office Supplies", "Software & Subscriptions", "Client Entertainment", "Training & Development"];
+const expenseCategories = ["Airfare", "Hotel / Lodging", "Ground Transportation", "Business Meals", "Office Supplies", "Software & SaaS", "Client Entertainment", "Training & Development"];
 const glCodes = ["4100-001", "4100-002", "4200-001", "4200-002", "5100-001", "5100-002", "5200-001", "6100-001"];
 const policyStatuses = ["COMPLIANT", "COMPLIANT", "COMPLIANT", "SOFT_VIOLATION", "HARD_VIOLATION"] as const;
 
