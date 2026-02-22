@@ -598,7 +598,7 @@ export default function NewExpensePage() {
           const err = await res.json();
           throw new Error(err.error || "Failed to create expense");
         }
-        toast.success(asDraft ? "Expense saved as draft" : "Expense submitted successfully");
+        toast.success(asDraft ? "Expense saved as draft" : "Expense created! Next: go to Expense Reports → New Report to submit for approval.");
         router.push("/expenses");
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to create expense");

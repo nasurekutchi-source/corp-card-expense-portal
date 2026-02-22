@@ -24,6 +24,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
+  ArrowRight,
+  FileText,
 } from "lucide-react";
 
 interface Expense {
@@ -160,6 +162,23 @@ export default function ExpensesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Next Step Guide */}
+      {stats.total > 0 && (
+        <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
+          <CardContent className="p-3 flex items-center gap-3">
+            <FileText className="w-5 h-5 text-blue-600 shrink-0" />
+            <p className="text-sm text-blue-800 dark:text-blue-300 flex-1">
+              <span className="font-medium">Next step:</span> Group your expenses into an Expense Report and submit for approval.
+            </p>
+            <Button size="sm" variant="outline" asChild className="shrink-0 border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300">
+              <Link href="/expense-reports/new">
+                Create Report <ArrowRight className="w-3 h-3 ml-1" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Search + Filter */}
       <div className="flex flex-col sm:flex-row gap-3">
