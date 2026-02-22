@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -121,6 +122,16 @@ export default function ReportsPage() {
     sgst: Math.round(Math.random() * 500000),
     igst: Math.round(Math.random() * 300000),
   }));
+
+  function downloadCsv(type: string, label: string) {
+    const link = document.createElement("a");
+    link.href = `/api/v1/data/export-csv?type=${type}`;
+    link.download = `${type}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success(`${label} CSV downloaded`);
+  }
 
   return (
     <div className="space-y-6 animate-in">
@@ -365,12 +376,12 @@ export default function ReportsPage() {
         <TabsContent value="export" className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              { title: "Spend Summary Report", desc: "Category-wise spend breakdown", icon: PieChart, format: "CSV / Excel" },
-              { title: "Transaction Detail Report", desc: "All transactions with merchant data", icon: ArrowUpDown, format: "CSV / Excel" },
-              { title: "Budget vs Actual Report", desc: "Department and cost center utilization", icon: BarChart3, format: "CSV / Excel" },
-              { title: "GST Summary Report", desc: "CGST/SGST/IGST for ITC filing", icon: Receipt, format: "CSV / Excel" },
-              { title: "Employee Expense Report", desc: "Per-employee expense summary", icon: IndianRupee, format: "CSV / Excel" },
-              { title: "AP Export File", desc: "Accounts payable integration file", icon: FileSpreadsheet, format: "CSV / SAP / Tally" },
+              { title: "Spend Summary Report", desc: "Category-wise spend breakdown", icon: PieChart, format: "CSV / Excel", exportType: "spend-summary" },
+              { title: "Transaction Detail Report", desc: "All transactions with merchant data", icon: ArrowUpDown, format: "CSV / Excel", exportType: "transactions" },
+              { title: "Budget vs Actual Report", desc: "Department and cost center utilization", icon: BarChart3, format: "CSV / Excel", exportType: "budget" },
+              { title: "GST Summary Report", desc: "CGST/SGST/IGST for ITC filing", icon: Receipt, format: "CSV / Excel", exportType: "gst" },
+              { title: "Employee Expense Report", desc: "Per-employee expense summary", icon: IndianRupee, format: "CSV / Excel", exportType: "employee-expense" },
+              { title: "AP Export File", desc: "Accounts payable integration file", icon: FileSpreadsheet, format: "CSV / SAP / Tally", exportType: "ap-export" },
             ].map((report) => (
               <Card key={report.title} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
@@ -383,7 +394,12 @@ export default function ReportsPage() {
                       <p className="text-xs text-muted-foreground mt-0.5">{report.desc}</p>
                       <div className="flex items-center gap-2 mt-2">
                         <Badge variant="outline" className="text-[9px]">{report.format}</Badge>
-                        <Button variant="outline" size="sm" className="h-6 text-xs ml-auto">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-xs ml-auto"
+                          onClick={() => downloadCsv(report.exportType, report.title)}
+                        >
                           <Download className="w-3 h-3 mr-1" />
                           Export
                         </Button>

@@ -441,6 +441,24 @@ export interface ScheduledCardAction {
   createdAt: string;
 }
 
+// =============================================================================
+// Receipt Types
+// =============================================================================
+
+export interface Receipt {
+  id: string;
+  expenseId?: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  base64Data: string;
+  uploadedAt: string;
+  ocrData: Record<string, any>;
+  ocrConfidence: Record<string, number>;
+  ocrStatus: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  source: "UPLOAD" | "CAMERA" | "EMAIL";
+}
+
 // -- Computed types --
 
 export interface DashboardStats {
@@ -614,6 +632,7 @@ export interface Store {
   detectedSubscriptions: DetectedSubscription[];
   scheduledCardActions: ScheduledCardAction[];
   expenseCategories: ExpenseCategoryConfig[];
+  receipts: Receipt[];
 }
 
 // =============================================================================
@@ -677,6 +696,7 @@ function buildInitialStore(): Store {
     detectedSubscriptions: deepClone(demoDetectedSubscriptions) as DetectedSubscription[],
     scheduledCardActions: deepClone(demoScheduledCardActions) as ScheduledCardAction[],
     expenseCategories: buildDefaultExpenseCategories(),
+    receipts: [],
   };
 }
 
@@ -2955,4 +2975,49 @@ export function reorderExpenseCategories(orderedIds: string[]): void {
     const cat = store.expenseCategories.find(c => c.id === id);
     if (cat) cat.sortOrder = index;
   });
+}
+
+// =============================================================================
+// Receipt CRUD
+// =============================================================================
+
+export function getReceipts(expenseId?: string): Receipt[] {
+  if (expenseId) return store.receipts.filter(r => r.expenseId === expenseId);
+  return [...store.receipts];
+}
+
+export function getReceipt(id: string): Receipt | undefined {
+  return store.receipts.find(r => r.id === id);
+}
+
+export function addReceipt(data: Partial<Receipt>): Receipt {
+  const receipt: Receipt = {
+    id: data.id || `rcpt-${generateId()}`,
+    fileName: data.fileName || "receipt.jpg",
+    fileSize: data.fileSize || 0,
+    mimeType: data.mimeType || "image/jpeg",
+    base64Data: data.base64Data || "",
+    uploadedAt: data.uploadedAt || new Date().toISOString(),
+    ocrData: data.ocrData || {},
+    ocrConfidence: data.ocrConfidence || {},
+    ocrStatus: data.ocrStatus || "PENDING",
+    source: data.source || "UPLOAD",
+    expenseId: data.expenseId,
+  };
+  store.receipts.push(receipt);
+  return receipt;
+}
+
+export function linkReceiptToExpense(receiptId: string, expenseId: string): Receipt | null {
+  const receipt = store.receipts.find(r => r.id === receiptId);
+  if (!receipt) return null;
+  receipt.expenseId = expenseId;
+  return receipt;
+}
+
+export function deleteReceipt(id: string): boolean {
+  const idx = store.receipts.findIndex(r => r.id === id);
+  if (idx === -1) return false;
+  store.receipts.splice(idx, 1);
+  return true;
 }

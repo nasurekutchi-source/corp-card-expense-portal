@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -177,6 +177,14 @@ export default function NewExpensePage() {
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [splitMode, setSplitMode] = useState(false);
 
+  // Receipt upload state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [receiptId, setReceiptId] = useState<string | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [ocrFields, setOcrFields] = useState<Record<string, any> | null>(null);
+  const [ocrConfidence, setOcrConfidence] = useState<Record<string, number> | null>(null);
+
   // Load reference data
   useEffect(() => {
     const cc = getCostCenters();
@@ -305,21 +313,65 @@ export default function NewExpensePage() {
   }, [policyChecks]);
 
   // -----------------------------------------------------------------------
-  // Receipt upload simulation
+  // Receipt upload — real file upload to /api/v1/receipts with OCR
   // -----------------------------------------------------------------------
-  const simulateReceiptUpload = useCallback(() => {
-    setForm((prev) => ({
-      ...prev,
-      hasReceipt: true,
-      receiptFilename: `receipt_${Date.now()}.jpg`,
-      merchantName: prev.merchantName || "Taj Hotels Mumbai",
-      amount: prev.amount || "12500",
-      date: prev.date || "2026-02-20",
-      supplierGstin: prev.supplierGstin || "27AABCU9603R1ZM",
-      categoryCode: prev.categoryCode || "TRAVEL",
-      subcategoryCode: prev.subcategoryCode || "TRAVEL_HOTEL",
-    }));
-    toast.success("Receipt uploaded and OCR data extracted");
+  const handleReceiptUpload = useCallback(async (file: File) => {
+    setUploading(true);
+    try {
+      // Show client-side preview immediately
+      const reader = new FileReader();
+      reader.onload = (e) => setReceiptPreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+
+      // Upload to API
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/v1/receipts", { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Upload failed");
+      }
+      const receipt = await res.json();
+
+      setReceiptId(receipt.id);
+      setOcrFields(receipt.ocrData);
+      setOcrConfidence(receipt.ocrConfidence);
+
+      // Auto-fill form fields from OCR data
+      setForm((prev) => ({
+        ...prev,
+        hasReceipt: true,
+        receiptFilename: file.name,
+        merchantName: receipt.ocrData.merchantName || prev.merchantName,
+        amount: receipt.ocrData.amount ? String(receipt.ocrData.amount) : prev.amount,
+        date: receipt.ocrData.date || prev.date,
+        currency: receipt.ocrData.currency || prev.currency,
+        supplierGstin: receipt.ocrData.gstin || prev.supplierGstin,
+        categoryCode: receipt.ocrData.category || prev.categoryCode,
+        subcategoryCode: receipt.ocrData.subcategory || prev.subcategoryCode,
+        glCode: receipt.ocrData.category && receipt.ocrData.subcategory
+          ? glCodeForSub(receipt.ocrData.category, receipt.ocrData.subcategory)
+          : prev.glCode,
+      }));
+
+      const fieldCount = Object.keys(receipt.ocrData).length;
+      const confidence = Math.round((receipt.ocrConfidence?.overall || 0) * 100);
+      toast.success(`Receipt uploaded — OCR extracted ${fieldCount} fields (${confidence}% confidence)`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Receipt upload failed");
+      setReceiptPreview(null);
+    } finally {
+      setUploading(false);
+    }
+  }, []);
+
+  const clearReceipt = useCallback(() => {
+    setForm((p: FormState) => ({ ...p, hasReceipt: false, receiptFilename: "" }));
+    setReceiptId(null);
+    setReceiptPreview(null);
+    setOcrFields(null);
+    setOcrConfidence(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
   // -----------------------------------------------------------------------
@@ -438,6 +490,7 @@ export default function NewExpensePage() {
           costCenterId: allocations[0]?.costCenterId || "",
           glCode: form.glCode,
           hasReceipt: form.hasReceipt,
+          receiptId: receiptId || undefined,
           transactionId: form.transactionId,
           policyStatus: asDraft ? "COMPLIANT" : overallPolicyStatus,
           employeeId: "emp-5",
@@ -464,7 +517,7 @@ export default function NewExpensePage() {
         setSubmitting(false);
       }
     },
-    [form, amountNum, overallPolicyStatus, cgst, sgst, igst, validateForm, router, allocations, config.gstCompliance]
+    [form, amountNum, overallPolicyStatus, cgst, sgst, igst, validateForm, router, allocations, config.gstCompliance, receiptId]
   );
 
   // -----------------------------------------------------------------------
@@ -534,35 +587,146 @@ export default function NewExpensePage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
+                  {/* Hidden file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleReceiptUpload(file);
+                    }}
+                  />
+
                   {!form.hasReceipt ? (
-                    <div className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                      onClick={simulateReceiptUpload}>
-                      <Camera className="w-8 h-8 mx-auto text-muted-foreground/30 mb-2" />
-                      <p className="font-medium text-sm">Upload receipt for auto-fill</p>
-                      <p className="text-xs text-muted-foreground mt-1">Drag &amp; drop, click to browse, or use camera</p>
-                      <div className="flex justify-center gap-2 mt-3">
-                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); simulateReceiptUpload(); }}>
-                          <Upload className="w-3 h-3 mr-1" /> Browse
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); simulateReceiptUpload(); }}>
-                          <Camera className="w-3 h-3 mr-1" /> Camera
-                        </Button>
-                      </div>
+                    /* --- Upload area --- */
+                    <div
+                      className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) handleReceiptUpload(file);
+                      }}
+                    >
+                      {uploading ? (
+                        <>
+                          <Loader2 className="w-8 h-8 mx-auto text-primary animate-spin mb-2" />
+                          <p className="font-medium text-sm">Uploading &amp; extracting data...</p>
+                          <p className="text-xs text-muted-foreground mt-1">Running OCR on your receipt</p>
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="w-8 h-8 mx-auto text-muted-foreground/30 mb-2" />
+                          <p className="font-medium text-sm">Upload receipt for auto-fill</p>
+                          <p className="text-xs text-muted-foreground mt-1">Drag &amp; drop, click to browse, or use camera</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Supports JPEG, PNG, WebP, HEIC, PDF (max 5MB)</p>
+                          <div className="flex justify-center gap-2 mt-3">
+                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
+                              <Upload className="w-3 h-3 mr-1" /> Browse
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
+                              <Camera className="w-3 h-3 mr-1" /> Camera
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ) : (
-                    <div className="bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-200 dark:border-emerald-500/20 rounded-lg p-4">
-                      <div className="flex items-center gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Receipt uploaded</p>
-                          <p className="text-xs text-emerald-600/60">{form.receiptFilename} &mdash; OCR extracted 5 fields</p>
+                    /* --- Receipt uploaded success state --- */
+                    <div className="space-y-3">
+                      <div className="bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-200 dark:border-emerald-500/20 rounded-lg p-4">
+                        <div className="flex items-center gap-3">
+                          {receiptPreview && receiptPreview.startsWith("data:image") ? (
+                            <img
+                              src={receiptPreview}
+                              alt="Receipt"
+                              className="w-12 h-12 object-cover rounded border"
+                            />
+                          ) : (
+                            <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Receipt uploaded</p>
+                            <p className="text-xs text-emerald-600/60 truncate">
+                              {form.receiptFilename}
+                              {ocrFields && <> &mdash; OCR extracted {Object.keys(ocrFields).length} fields</>}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="text-[9px] shrink-0">
+                            <Sparkles className="w-3 h-3 mr-0.5" />AI Extracted
+                          </Badge>
+                          <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700 shrink-0" onClick={clearReceipt}>
+                            <XCircle className="w-4 h-4" />
+                          </Button>
                         </div>
-                        <Badge variant="outline" className="text-[9px]"><Sparkles className="w-3 h-3 mr-0.5" />AI Extracted</Badge>
-                        <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700"
-                          onClick={() => setForm((p) => ({ ...p, hasReceipt: false, receiptFilename: "" }))}>
-                          <XCircle className="w-4 h-4" />
-                        </Button>
                       </div>
+
+                      {/* OCR Confidence Bars */}
+                      {ocrConfidence && (
+                        <div className="bg-slate-50 dark:bg-slate-500/5 border border-slate-200 dark:border-slate-500/20 rounded-lg p-3">
+                          <p className="text-xs font-medium mb-2 flex items-center gap-1.5">
+                            <Sparkles className="w-3 h-3" /> OCR Confidence Scores
+                          </p>
+                          <div className="space-y-1.5">
+                            {Object.entries(ocrConfidence)
+                              .filter(([key]) => key !== "overall")
+                              .map(([key, rawVal]) => {
+                                const val = rawVal as number;
+                                return (
+                                <div key={key} className="flex items-center gap-2 text-[11px]">
+                                  <span className="w-24 text-muted-foreground capitalize">
+                                    {key.replace(/([A-Z])/g, " $1").trim()}
+                                  </span>
+                                  <div className="flex-1 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full transition-all ${
+                                        val >= 0.95
+                                          ? "bg-emerald-500"
+                                          : val >= 0.9
+                                          ? "bg-blue-500"
+                                          : val >= 0.85
+                                          ? "bg-amber-500"
+                                          : "bg-red-500"
+                                      }`}
+                                      style={{ width: `${Math.round(val * 100)}%` }}
+                                    />
+                                  </div>
+                                  <span className="w-10 text-right font-medium">{Math.round(val * 100)}%</span>
+                                </div>
+                                );
+                              })}
+                            <div className="flex items-center gap-2 text-[11px] pt-1 border-t mt-1">
+                              <span className="w-24 font-medium">Overall</span>
+                              <div className="flex-1 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    ocrConfidence.overall >= 0.95 ? "bg-emerald-500" : ocrConfidence.overall >= 0.9 ? "bg-blue-500" : "bg-amber-500"
+                                  }`}
+                                  style={{ width: `${Math.round(ocrConfidence.overall * 100)}%` }}
+                                />
+                              </div>
+                              <span className="w-10 text-right font-bold">{Math.round(ocrConfidence.overall * 100)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Re-upload button */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs"
+                        onClick={() => {
+                          clearReceipt();
+                          setTimeout(() => fileInputRef.current?.click(), 100);
+                        }}
+                      >
+                        <Upload className="w-3 h-3 mr-1" /> Upload Different Receipt
+                      </Button>
                     </div>
                   )}
                 </CardContent>

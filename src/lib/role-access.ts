@@ -108,11 +108,18 @@ const EXPENSE_SECTIONS: NavSection[] = [
   "reimbursements", "my_expenses",
 ];
 
+const CARD_SECTIONS: NavSection[] = [
+  "cards", "card_controls", "transactions", "statements", "payments",
+  "workflows", "disputes", "subscriptions", "scheduled_actions",
+  "company_management", "my_cards", "my_transactions",
+];
+
 export function canAccessNav(
   role: UserRole,
   section: NavSection,
   moduleConfig: ModuleConfig = defaultModuleConfig
 ): boolean {
+  if (CARD_SECTIONS.includes(section) && !moduleConfig.cardPortal) return false;
   if (EXPENSE_SECTIONS.includes(section) && !moduleConfig.expenseManagement) return false;
   if (section === "ai_assistant" && (!moduleConfig.aiAssistant || !moduleConfig.expenseManagement)) return false;
   return ROLE_NAV[role]?.includes(section) ?? false;
@@ -172,11 +179,17 @@ const EXPENSE_WIDGETS: DashboardWidget[] = [
   "my_missing_receipts", "my_pending_approvals",
 ];
 
+const CARD_WIDGETS: DashboardWidget[] = [
+  "active_cards", "limit_utilization", "my_balance",
+  "recent_transactions", "my_recent_txns",
+];
+
 export function canSeeWidget(
   role: UserRole,
   widget: DashboardWidget,
   moduleConfig: ModuleConfig = defaultModuleConfig
 ): boolean {
+  if (CARD_WIDGETS.includes(widget) && !moduleConfig.cardPortal) return false;
   if (EXPENSE_WIDGETS.includes(widget) && !moduleConfig.expenseManagement) return false;
   return ROLE_WIDGETS[role]?.includes(widget) ?? false;
 }
