@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
-import { getEmployees } from "@/lib/store";
+// Payment profiles fetched from API
 import { useModuleConfig } from "@/components/providers/module-config-provider";
 import { formatINRCompact } from "@/lib/utils";
 import {
@@ -48,29 +48,23 @@ interface ReimbursementItem {
   failureReason: string | null;
 }
 
-// -- Static payment profiles (kept client-side) --
-
-const paymentProfiles = getEmployees()
-  .slice(0, 5)
-  .map((emp, i) => ({
-    id: `pp-${i + 1}`,
-    employeeName: `${emp.firstName} ${emp.lastName}`,
-    employeeNumber: emp.employeeNumber,
-    type: i % 4 === 3 ? "UPI" : ("BANK_ACCOUNT" as const),
-    bankName: ["State Bank of India", "HDFC Bank", "ICICI Bank", "Kotak Bank", "Axis Bank"][i],
-    accountNumber: `XXXX${String(4000 + i).slice(-4)}`,
-    ifsc: `${["SBIN", "HDFC", "ICIC", "KKBK", "UTIB"][i]}0001234`,
-    upiVpa: i % 4 === 3 ? `${emp.firstName.toLowerCase()}@upi` : null,
-    isPrimary: true,
-    status: "VERIFIED",
-  }));
-
 export default function ReimbursementsPage() {
   const { config: modules } = useModuleConfig();
   const paymentMode = modules.paymentMode || "BATCH";
   const [reimbursements, setReimbursements] = useState<ReimbursementItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [paymentProfiles, setPaymentProfiles] = useState<any[]>([]);
+
+  // Fetch payment profiles from API
+  useEffect(() => {
+    fetch("/api/v1/payment-profiles")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setPaymentProfiles(data);
+      })
+      .catch(() => {});
+  }, []);
 
   // -- Fetch reimbursements from API --
   const fetchReimbursements = useCallback(async () => {
@@ -491,6 +485,15 @@ export default function ReimbursementsPage() {
 
         {/* Payment Profiles */}
         <TabsContent value="profiles" className="space-y-3">
+          {paymentProfiles.length === 0 && (
+            <Card>
+              <CardContent className="p-8 text-center text-muted-foreground">
+                <Landmark className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm font-medium">No payment profiles found</p>
+                <p className="text-xs mt-1">Payment profiles are created during employee onboarding or from the employee profile page.</p>
+              </CardContent>
+            </Card>
+          )}
           {paymentProfiles.map((profile) => (
             <Card key={profile.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-4">
@@ -523,7 +526,7 @@ export default function ReimbursementsPage() {
                           <span>&middot;</span>
                           <span>A/C: {profile.accountNumber}</span>
                           <span>&middot;</span>
-                          <span>IFSC: {profile.ifsc}</span>
+                          <span>IFSC: {profile.ifscCode || profile.ifsc}</span>
                         </>
                       )}
                     </div>

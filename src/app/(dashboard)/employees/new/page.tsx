@@ -21,9 +21,10 @@ import {
   Mail,
   Phone,
   Shield,
+  Landmark,
 } from "lucide-react";
 
-const steps = ["Personal Details", "Department & Role", "Cost Center & Limits", "Review"];
+const steps = ["Personal Details", "Department & Role", "Cost Center & Limits", "Payment Details", "Review"];
 
 interface FormData {
   firstName: string;
@@ -44,6 +45,15 @@ interface FormData {
   perTxnLimit: string;
   dailyLimit: string;
   monthlyLimit: string;
+  // Payment details
+  bankAccountNumber: string;
+  bankAccountHolderName: string;
+  bankIfsc: string;
+  bankName: string;
+  bankBranch: string;
+  accountType: string;
+  upiVpa: string;
+  skipPaymentDetails: boolean;
 }
 
 export default function NewEmployeePage() {
@@ -79,6 +89,14 @@ export default function NewEmployeePage() {
     perTxnLimit: "25000",
     dailyLimit: "50000",
     monthlyLimit: "200000",
+    bankAccountNumber: "",
+    bankAccountHolderName: "",
+    bankIfsc: "",
+    bankName: "",
+    bankBranch: "",
+    accountType: "SAVINGS",
+    upiVpa: "",
+    skipPaymentDetails: false,
   });
 
   const updateField = <K extends keyof FormData>(field: K, value: FormData[K]) => {
@@ -141,6 +159,26 @@ export default function NewEmployeePage() {
         if (!cardRes.ok) {
           toast.warning("Employee created but card issuance failed");
         }
+      }
+
+      // Create payment profile if provided
+      if (!form.skipPaymentDetails && form.bankAccountNumber && newEmployee?.id) {
+        await fetch("/api/v1/payment-profiles", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            employeeId: newEmployee.id,
+            employeeName: `${form.firstName} ${form.lastName}`,
+            type: form.upiVpa ? "UPI" : "BANK_ACCOUNT",
+            accountNumber: form.bankAccountNumber,
+            accountHolderName: form.bankAccountHolderName || `${form.firstName} ${form.lastName}`,
+            ifscCode: form.bankIfsc,
+            bankName: form.bankName,
+            branchName: form.bankBranch,
+            accountType: form.accountType,
+            upiVpa: form.upiVpa || null,
+          }),
+        });
       }
 
       toast.success("Employee onboarded successfully");
@@ -406,6 +444,89 @@ export default function NewEmployeePage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Landmark className="w-4 h-4" />
+                Payment Details
+                <Badge variant="outline" className="text-[9px] font-normal ml-auto">For Reimbursements</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-blue-50 dark:bg-blue-500/5 border border-blue-200 dark:border-blue-500/20 rounded-lg p-3 text-xs text-blue-700 dark:text-blue-400">
+                <p className="font-medium">Salary Account / Reimbursement Account</p>
+                <p className="mt-0.5 opacity-80">These details will be used for expense reimbursement payments via NEFT/RTGS/IMPS. Can also be added later from the employee profile.</p>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Skip for now</p>
+                  <p className="text-xs text-muted-foreground">Payment details can be added later</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" checked={form.skipPaymentDetails}
+                    onChange={(e) => updateField("skipPaymentDetails", e.target.checked)}
+                    className="sr-only peer" />
+                  <div className="w-9 h-5 bg-muted rounded-full peer peer-checked:bg-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all" />
+                </label>
+              </div>
+
+              {!form.skipPaymentDetails && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Account Holder Name</label>
+                      <Input placeholder="As per bank records"
+                        value={form.bankAccountHolderName}
+                        onChange={(e) => updateField("bankAccountHolderName", e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Account Number</label>
+                      <Input placeholder="Enter bank account number"
+                        value={form.bankAccountNumber}
+                        onChange={(e) => updateField("bankAccountNumber", e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">IFSC Code</label>
+                      <Input placeholder="e.g. SBIN0001234" maxLength={11}
+                        value={form.bankIfsc}
+                        onChange={(e) => updateField("bankIfsc", e.target.value.toUpperCase())} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Bank Name</label>
+                      <Input placeholder="e.g. State Bank of India"
+                        value={form.bankName}
+                        onChange={(e) => updateField("bankName", e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Branch</label>
+                      <Input placeholder="e.g. Mumbai Main Branch"
+                        value={form.bankBranch}
+                        onChange={(e) => updateField("bankBranch", e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Account Type</label>
+                      <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={form.accountType}
+                        onChange={(e) => updateField("accountType", e.target.value)}>
+                        <option value="SAVINGS">Savings</option>
+                        <option value="CURRENT">Current</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">UPI VPA (optional)</label>
+                    <Input placeholder="e.g. name@upi"
+                      value={form.upiVpa}
+                      onChange={(e) => updateField("upiVpa", e.target.value)} />
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {step === 4 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4" />
                 Review & Confirm
               </CardTitle>
@@ -430,6 +551,9 @@ export default function NewEmployeePage() {
                       ? `Virtual, ${Number(form.monthlyLimit).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}/month`
                       : "No",
                   },
+                  { label: "Bank Account", value: form.skipPaymentDetails ? "Skipped (add later)" : form.bankAccountNumber ? `${form.bankName} - A/C ${form.bankAccountNumber.slice(-4).padStart(form.bankAccountNumber.length, 'X')}` : "\u2014" },
+                  { label: "IFSC Code", value: form.skipPaymentDetails ? "\u2014" : form.bankIfsc || "\u2014" },
+                  { label: "UPI VPA", value: form.upiVpa || "\u2014" },
                 ].map((item) => (
                   <div key={item.label}>
                     <p className="text-xs text-muted-foreground">{item.label}</p>

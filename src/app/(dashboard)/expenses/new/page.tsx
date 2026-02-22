@@ -99,6 +99,7 @@ interface PolicyCheck {
 // ---------------------------------------------------------------------------
 interface Allocation {
   costCenterId: string;
+  glCode: string;
   percentage: number;
 }
 
@@ -193,13 +194,14 @@ export default function NewExpensePage() {
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [ocrFields, setOcrFields] = useState<Record<string, any> | null>(null);
   const [ocrConfidence, setOcrConfidence] = useState<Record<string, number> | null>(null);
+  const [gstFromOcr, setGstFromOcr] = useState(false);
 
   // Load reference data
   useEffect(() => {
     const cc = getCostCenters();
     setCostCenters(cc);
     if (cc.length > 0) {
-      setAllocations([{ costCenterId: cc[0].id, percentage: 100 }]);
+      setAllocations([{ costCenterId: cc[0].id, glCode: initialFormState.glCode, percentage: 100 }]);
     }
     const allTxns = getTransactions();
     const existingExpenses = getExpenses();
@@ -397,6 +399,9 @@ export default function NewExpensePage() {
       setOcrConfidence(receipt.ocrConfidence);
 
       // Auto-fill form fields from OCR data
+      const ocrGstRate = receipt.ocrData.gstRate;
+      const ocrIgst = receipt.ocrData.igst;
+      const ocrCgst = receipt.ocrData.cgst;
       setForm((prev) => ({
         ...prev,
         hasReceipt: true,
@@ -411,7 +416,12 @@ export default function NewExpensePage() {
         glCode: receipt.ocrData.category && receipt.ocrData.subcategory
           ? glCodeForSub(receipt.ocrData.category, receipt.ocrData.subcategory)
           : prev.glCode,
+        gstSlab: ocrGstRate != null ? ocrGstRate : prev.gstSlab,
+        placeOfSupply: ocrIgst > 0 ? "different" : (ocrCgst > 0 ? "same" : prev.placeOfSupply),
       }));
+      if (ocrGstRate != null) {
+        setGstFromOcr(true);
+      }
 
       const fieldCount = Object.keys(receipt.ocrData).length;
       const confidence = Math.round((receipt.ocrConfidence?.overall || 0) * 100);
@@ -430,6 +440,7 @@ export default function NewExpensePage() {
     setReceiptPreview(null);
     setOcrFields(null);
     setOcrConfidence(null);
+    setGstFromOcr(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
@@ -492,9 +503,9 @@ export default function NewExpensePage() {
       const usedIds = new Set(prev.map((a) => a.costCenterId));
       const available = costCenters.find((c) => !usedIds.has(c.id));
       if (!available) return prev;
-      return [...prev, { costCenterId: available.id, percentage: 0 }];
+      return [...prev, { costCenterId: available.id, glCode: form.glCode, percentage: 0 }];
     });
-  }, [costCenters]);
+  }, [costCenters, form.glCode]);
 
   const updateAllocation = useCallback((idx: number, field: keyof Allocation, value: string | number) => {
     setAllocations((prev) => prev.map((a, i) => (i === idx ? { ...a, [field]: value } : a)));
@@ -557,6 +568,9 @@ export default function NewExpensePage() {
           gstDetails: config.gstCompliance
             ? { gstin: form.supplierGstin, cgst, sgst, igst }
             : { gstin: "", cgst: 0, sgst: 0, igst: 0 },
+          allocations: splitMode
+            ? allocations
+            : [{ costCenterId: allocations[0]?.costCenterId || "", glCode: form.glCode, percentage: 100 }],
         };
 
         const res = await fetch("/api/v1/expenses", {
@@ -901,7 +915,7 @@ export default function NewExpensePage() {
                       <Switch checked={splitMode} onCheckedChange={(v) => {
                         setSplitMode(v);
                         if (!v && allocations.length > 1) {
-                          setAllocations([{ ...allocations[0], percentage: 100 }]);
+                          setAllocations([{ ...allocations[0], glCode: allocations[0].glCode || form.glCode, percentage: 100 }]);
                         }
                       }} />
                     </div>
@@ -910,27 +924,40 @@ export default function NewExpensePage() {
                 <CardContent>
                   <div className="space-y-3">
                     {allocations.map((alloc, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <select className={`${selectCls} flex-1`} value={alloc.costCenterId}
-                          onChange={(e) => updateAllocation(idx, "costCenterId", e.target.value)}>
-                          {costCenters.map((cc) => (
-                            <option key={cc.id} value={cc.id}>{cc.name} ({cc.code})</option>
-                          ))}
-                        </select>
+                      <div key={idx} className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <select className={`${selectCls} flex-1`} value={alloc.costCenterId}
+                            onChange={(e) => updateAllocation(idx, "costCenterId", e.target.value)}>
+                            {costCenters.map((cc) => (
+                              <option key={cc.id} value={cc.id}>{cc.name} ({cc.code})</option>
+                            ))}
+                          </select>
+                          {splitMode && (
+                            <>
+                              <div className="relative w-24 shrink-0">
+                                <Input type="number" className="h-9 pr-7" value={alloc.percentage}
+                                  onChange={(e) => updateAllocation(idx, "percentage", parseFloat(e.target.value) || 0)}
+                                  min="0" max="100" />
+                                <Percent className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                              </div>
+                              {allocations.length > 1 && (
+                                <Button variant="ghost" size="sm" onClick={() => removeAllocation(idx)} className="text-red-500 shrink-0 h-9 w-9 p-0">
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
                         {splitMode && (
-                          <>
-                            <div className="relative w-24 shrink-0">
-                              <Input type="number" className="h-9 pr-7" value={alloc.percentage}
-                                onChange={(e) => updateAllocation(idx, "percentage", parseFloat(e.target.value) || 0)}
-                                min="0" max="100" />
-                              <Percent className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                            </div>
-                            {allocations.length > 1 && (
-                              <Button variant="ghost" size="sm" onClick={() => removeAllocation(idx)} className="text-red-500 shrink-0 h-9 w-9 p-0">
-                                <X className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </>
+                          <div className="flex items-center gap-2 pl-0">
+                            <label className="text-[11px] text-muted-foreground shrink-0 w-16">GL Code</label>
+                            <Input
+                              value={alloc.glCode}
+                              onChange={(e) => updateAllocation(idx, "glCode", e.target.value)}
+                              placeholder="e.g. 4120-001"
+                              className="h-8 text-xs flex-1"
+                            />
+                          </div>
                         )}
                       </div>
                     ))}
@@ -1028,14 +1055,33 @@ export default function NewExpensePage() {
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-xs font-medium">GST Slab</label>
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 items-center">
                             {GST_SLABS.map((slab) => (
                               <Button key={slab} variant={form.gstSlab === slab ? "default" : "outline"} size="sm"
                                 onClick={() => updateField("gstSlab", slab)} className="flex-1 text-xs h-9">
                                 {slab}%
                               </Button>
                             ))}
+                            <div className="relative w-20 shrink-0">
+                              <Input
+                                type="number"
+                                className="h-9 pr-6 text-xs"
+                                value={form.gstSlab}
+                                onChange={(e) => updateField("gstSlab", parseFloat(e.target.value) || 0)}
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                placeholder="%"
+                              />
+                              <Percent className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                            </div>
                           </div>
+                          {gstFromOcr && (
+                            <p className="text-[11px] text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-1">
+                              <Sparkles className="w-3 h-3" />
+                              GST rate extracted from receipt
+                            </p>
+                          )}
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-xs font-medium">Place of Supply</label>

@@ -276,6 +276,21 @@ export interface DoaApprovalRule {
   approvers: string;
 }
 
+export interface ApprovalChainStep {
+  role: string;
+  level: number;
+}
+
+export interface ApprovalChainRule {
+  id: string;
+  name: string;
+  amountMin: number;
+  amountMax: number;       // 0 = unlimited
+  category: string;        // "ALL" or specific category code
+  approverChain: ApprovalChainStep[];  // ordered list
+  isActive: boolean;
+}
+
 // =============================================================================
 // Statement Types
 // =============================================================================
@@ -482,6 +497,28 @@ export interface Reimbursement {
   processedAt: string | null;
   paidAt: string | null;
   failureReason: string | null;
+}
+
+// =============================================================================
+// Payment Profile Types (Employee Bank/UPI Details for Reimbursements)
+// =============================================================================
+
+export interface PaymentProfile {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  type: "BANK_ACCOUNT" | "UPI";
+  accountNumber: string;         // masked for display, full for payment
+  accountHolderName: string;
+  ifscCode: string;
+  bankName: string;
+  branchName: string;
+  accountType: "SAVINGS" | "CURRENT";
+  upiVpa: string | null;         // e.g. "name@upi" — only for UPI type
+  isPrimary: boolean;
+  status: "PENDING_VERIFICATION" | "VERIFIED" | "FAILED";
+  addedAt: string;
+  verifiedAt: string | null;
 }
 
 // -- Computed types --
@@ -696,6 +733,7 @@ export interface Store {
   cardControlPolicies: CardControlPolicy[];
   doaAuthorityLevels: DoaAuthorityLevel[];
   doaApprovalMatrix: DoaApprovalRule[];
+  approvalChainRules: ApprovalChainRule[];
   cardStatements: CardStatement[];
   corporateStatements: CorporateStatement[];
   paymentCycles: PaymentCycle[];
@@ -709,6 +747,7 @@ export interface Store {
   reimbursements: Reimbursement[];
   auditLog: AuditLogEntry[];
   gstinCache: GstinRecord[];
+  paymentProfiles: PaymentProfile[];
 }
 
 // =============================================================================
@@ -806,6 +845,42 @@ function buildDemoGstinCache(): GstinRecord[] {
 }
 
 // =============================================================================
+// Build Demo Payment Profiles
+// =============================================================================
+
+function buildDemoPaymentProfiles(): PaymentProfile[] {
+  const employees = deepClone(demoEmployees) as any[];
+  const banks = [
+    { name: "State Bank of India", ifsc: "SBIN0001234", branch: "Mumbai Main" },
+    { name: "HDFC Bank", ifsc: "HDFC0005678", branch: "BKC Branch" },
+    { name: "ICICI Bank", ifsc: "ICIC0009012", branch: "Andheri East" },
+    { name: "Axis Bank", ifsc: "UTIB0003456", branch: "Lower Parel" },
+    { name: "Kotak Mahindra Bank", ifsc: "KKBK0007890", branch: "Nariman Point" },
+  ];
+
+  return employees.slice(0, 10).map((emp: any, i: number) => {
+    const bank = banks[i % banks.length];
+    return {
+      id: `pp-${i + 1}`,
+      employeeId: emp.id,
+      employeeName: `${emp.firstName} ${emp.lastName}`,
+      type: "BANK_ACCOUNT" as const,
+      accountNumber: `XXXX${String(4000 + i * 111).slice(-4)}`,
+      accountHolderName: `${emp.firstName} ${emp.lastName}`,
+      ifscCode: bank.ifsc,
+      bankName: bank.name,
+      branchName: bank.branch,
+      accountType: "SAVINGS" as const,
+      upiVpa: i % 3 === 0 ? `${emp.firstName.toLowerCase()}@upi` : null,
+      isPrimary: true,
+      status: "VERIFIED" as const,
+      addedAt: "2026-01-15T10:00:00Z",
+      verifiedAt: "2026-01-16T14:00:00Z",
+    };
+  });
+}
+
+// =============================================================================
 // Build Initial Store from Demo Data
 // =============================================================================
 
@@ -828,6 +903,42 @@ function buildInitialStore(): Store {
     cardControlPolicies: deepClone(demoCardControlPolicies) as CardControlPolicy[],
     doaAuthorityLevels: deepClone(demoDoaAuthorityLevels) as DoaAuthorityLevel[],
     doaApprovalMatrix: deepClone(demoDoaApprovalMatrix) as DoaApprovalRule[],
+    approvalChainRules: [
+      {
+        id: "acr-1",
+        name: "Standard - Manager Only",
+        amountMin: 0,
+        amountMax: 50000,
+        category: "ALL",
+        approverChain: [{ role: "DEPT_MANAGER", level: 1 }],
+        isActive: true,
+      },
+      {
+        id: "acr-2",
+        name: "Mid-Range - Manager + Finance",
+        amountMin: 50001,
+        amountMax: 200000,
+        category: "ALL",
+        approverChain: [
+          { role: "DEPT_MANAGER", level: 1 },
+          { role: "FINANCE_CONTROLLER", level: 2 },
+        ],
+        isActive: true,
+      },
+      {
+        id: "acr-3",
+        name: "High Value - Full Chain",
+        amountMin: 200001,
+        amountMax: 0,
+        category: "ALL",
+        approverChain: [
+          { role: "DEPT_MANAGER", level: 1 },
+          { role: "FINANCE_CONTROLLER", level: 2 },
+          { role: "COMPANY_ADMIN", level: 3 },
+        ],
+        isActive: true,
+      },
+    ],
     cardStatements: deepClone(demoCardStatements) as CardStatement[],
     corporateStatements: deepClone(demoCorporateStatements) as CorporateStatement[],
     paymentCycles: deepClone(demoPaymentCycles) as PaymentCycle[],
@@ -841,6 +952,7 @@ function buildInitialStore(): Store {
     reimbursements: [],
     auditLog: [],
     gstinCache: buildDemoGstinCache(),
+    paymentProfiles: buildDemoPaymentProfiles(),
   };
 }
 
@@ -2213,6 +2325,47 @@ export function deleteDoaApprovalRule(id: string): boolean {
 }
 
 // =============================================================================
+// Approval Chain Rules CRUD
+// =============================================================================
+
+export function getApprovalChainRules(): ApprovalChainRule[] {
+  return store.approvalChainRules;
+}
+
+export function getApprovalChainRule(id: string): ApprovalChainRule | undefined {
+  return store.approvalChainRules.find((r) => r.id === id);
+}
+
+export function addApprovalChainRule(data: Partial<ApprovalChainRule>): ApprovalChainRule {
+  const rule: ApprovalChainRule = {
+    id: data.id || `acr-${generateId()}`,
+    name: "",
+    amountMin: 0,
+    amountMax: 0,
+    category: "ALL",
+    approverChain: [],
+    isActive: true,
+    ...data,
+  };
+  store.approvalChainRules.push(rule);
+  return rule;
+}
+
+export function updateApprovalChainRule(id: string, updates: Partial<ApprovalChainRule>): ApprovalChainRule | null {
+  const idx = store.approvalChainRules.findIndex((r) => r.id === id);
+  if (idx === -1) return null;
+  store.approvalChainRules[idx] = { ...store.approvalChainRules[idx], ...updates, id };
+  return store.approvalChainRules[idx];
+}
+
+export function deleteApprovalChainRule(id: string): boolean {
+  const idx = store.approvalChainRules.findIndex((r) => r.id === id);
+  if (idx === -1) return false;
+  store.approvalChainRules.splice(idx, 1);
+  return true;
+}
+
+// =============================================================================
 // Hierarchy (nested view + generic add/import — backward compatible)
 // =============================================================================
 
@@ -3251,7 +3404,17 @@ export function updateReimbursement(id: string, updates: Partial<Reimbursement>)
 }
 
 export function initiateReimbursement(id: string): Reimbursement | null {
-  const result = updateReimbursement(id, { status: "INITIATED", initiatedAt: new Date().toISOString() });
+  // Look up the reimbursement first so we can enrich with payment profile
+  const reimb = store.reimbursements.find(r => r.id === id);
+  if (!reimb) return null;
+
+  // Try to populate bank details from the employee's primary payment profile
+  const paymentProfile = getPrimaryPaymentProfile(reimb.employeeId);
+  const bankUpdates: Partial<Reimbursement> = paymentProfile
+    ? { bankAccount: paymentProfile.accountNumber, ifscCode: paymentProfile.ifscCode, bankName: paymentProfile.bankName }
+    : {};
+
+  const result = updateReimbursement(id, { ...bankUpdates, status: "INITIATED", initiatedAt: new Date().toISOString() });
   if (result) {
     addAuditLogEntry({
       entityType: "REIMBURSEMENT",
@@ -3548,4 +3711,96 @@ export function checkAndEscalateApprovals(): { escalated: string[]; checked: num
   }
 
   return { escalated, checked: store.approvals.filter(a => a.status === "PENDING").length + escalated.length };
+}
+
+// =============================================================================
+// Payment Profile CRUD
+// =============================================================================
+
+export function getPaymentProfiles(employeeId?: string): PaymentProfile[] {
+  if (employeeId) {
+    return store.paymentProfiles.filter((p) => p.employeeId === employeeId);
+  }
+  return [...store.paymentProfiles];
+}
+
+export function getPaymentProfile(id: string): PaymentProfile | undefined {
+  return store.paymentProfiles.find((p) => p.id === id);
+}
+
+export function getPrimaryPaymentProfile(employeeId: string): PaymentProfile | undefined {
+  return store.paymentProfiles.find((p) => p.employeeId === employeeId && p.isPrimary);
+}
+
+export function addPaymentProfile(data: Partial<PaymentProfile>): PaymentProfile {
+  // If this is the first profile for the employee, make it primary
+  const existing = store.paymentProfiles.filter((p) => p.employeeId === data.employeeId);
+  const isPrimary = existing.length === 0 ? true : data.isPrimary || false;
+
+  // If setting as primary, unset other primaries for this employee
+  if (isPrimary) {
+    store.paymentProfiles.forEach((p) => {
+      if (p.employeeId === data.employeeId) p.isPrimary = false;
+    });
+  }
+
+  const profile: PaymentProfile = {
+    id: data.id || `pp-${generateId()}`,
+    employeeId: data.employeeId || "",
+    employeeName: data.employeeName || "",
+    type: data.type || "BANK_ACCOUNT",
+    accountNumber: data.accountNumber || "",
+    accountHolderName: data.accountHolderName || "",
+    ifscCode: data.ifscCode || "",
+    bankName: data.bankName || "",
+    branchName: data.branchName || "",
+    accountType: data.accountType || "SAVINGS",
+    upiVpa: data.upiVpa || null,
+    isPrimary,
+    status: data.status || "PENDING_VERIFICATION",
+    addedAt: new Date().toISOString(),
+    verifiedAt: null,
+  };
+  store.paymentProfiles.push(profile);
+
+  addAuditLogEntry({
+    entityType: "PAYMENT_PROFILE",
+    entityId: profile.id,
+    action: "CREATE",
+    userName: data.employeeName || "System",
+    metadata: { employeeId: data.employeeId, type: profile.type, bankName: profile.bankName },
+  });
+
+  return profile;
+}
+
+export function updatePaymentProfile(id: string, updates: Partial<PaymentProfile>): PaymentProfile | null {
+  const idx = store.paymentProfiles.findIndex((p) => p.id === id);
+  if (idx === -1) return null;
+
+  // If setting as primary, unset other primaries
+  if (updates.isPrimary) {
+    const employeeId = store.paymentProfiles[idx].employeeId;
+    store.paymentProfiles.forEach((p) => {
+      if (p.employeeId === employeeId) p.isPrimary = false;
+    });
+  }
+
+  store.paymentProfiles[idx] = { ...store.paymentProfiles[idx], ...updates };
+  return store.paymentProfiles[idx];
+}
+
+export function deletePaymentProfile(id: string): boolean {
+  const idx = store.paymentProfiles.findIndex((p) => p.id === id);
+  if (idx === -1) return false;
+  store.paymentProfiles.splice(idx, 1);
+  return true;
+}
+
+export function verifyPaymentProfile(id: string): PaymentProfile | null {
+  const idx = store.paymentProfiles.findIndex((p) => p.id === id);
+  if (idx === -1) return null;
+  store.paymentProfiles[idx].status = "VERIFIED";
+  store.paymentProfiles[idx].verifiedAt = new Date().toISOString();
+  return store.paymentProfiles[idx];
 }

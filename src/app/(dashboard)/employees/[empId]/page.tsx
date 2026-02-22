@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import {
   Calendar,
   Edit2,
   Shield,
+  Landmark,
 } from "lucide-react";
 
 export default function EmployeeDetailPage({ params }: { params: Promise<{ empId: string }> }) {
@@ -42,6 +43,14 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ empId
   const transactions = allTransactions.filter((t) => t.employeeId === emp.id).slice(0, 10);
   const expenses = allExpenses.filter((e) => e.employeeId === emp.id).slice(0, 10);
   const totalSpend = transactions.reduce((s, t) => s + t.amount, 0);
+
+  const [paymentProfiles, setPaymentProfiles] = useState<any[]>([]);
+  useEffect(() => {
+    fetch(`/api/v1/payment-profiles?employeeId=${emp.id}`)
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setPaymentProfiles(data); })
+      .catch(() => {});
+  }, [emp.id]);
 
   return (
     <div className="space-y-6 animate-in">
@@ -139,6 +148,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ empId
               <TabsTrigger value="cards">Assigned Cards</TabsTrigger>
               <TabsTrigger value="transactions">Transactions</TabsTrigger>
               <TabsTrigger value="expenses">Expenses</TabsTrigger>
+              <TabsTrigger value="payment">Payment Profile</TabsTrigger>
             </TabsList>
 
             <TabsContent value="cards">
@@ -213,6 +223,50 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ empId
                       </div>
                     ))}
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="payment">
+              <Card>
+                <CardContent className="p-4">
+                  {paymentProfiles.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Landmark className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm font-medium">No payment profile on file</p>
+                      <p className="text-xs mt-1">Add bank account details for reimbursement payments</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {paymentProfiles.map((pp: any) => (
+                        <div key={pp.id} className="flex items-center gap-3 p-3 rounded-lg border">
+                          <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
+                            <Landmark className="w-5 h-5 text-emerald-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{pp.bankName}</span>
+                              {pp.isPrimary && <Badge variant="default" className="text-[8px]">Primary</Badge>}
+                              <Badge variant={pp.status === "VERIFIED" ? "outline" : "secondary"} className="text-[8px]">
+                                {pp.status === "VERIFIED" ? "Verified" : pp.status === "PENDING_VERIFICATION" ? "Pending" : "Failed"}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              A/C: {pp.accountNumber} &middot; IFSC: {pp.ifscCode}
+                              {pp.branchName && <> &middot; {pp.branchName}</>}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {pp.accountHolderName} &middot; {pp.accountType}
+                              {pp.upiVpa && <> &middot; UPI: {pp.upiVpa}</>}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-[10px] text-muted-foreground">{pp.type === "UPI" ? "UPI" : "Bank Account"}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
