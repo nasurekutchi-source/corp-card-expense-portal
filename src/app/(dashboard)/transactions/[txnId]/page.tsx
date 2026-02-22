@@ -13,6 +13,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { getTransactions } from "@/lib/store";
 import { useModuleConfig } from "@/components/providers/module-config-provider";
 import { formatINR, formatDate } from "@/lib/utils";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CreditCard,
@@ -35,6 +37,7 @@ import {
 export default function TransactionDetailPage({ params }: { params: Promise<{ txnId: string }> }) {
   const { txnId } = use(params);
   const { config: mc } = useModuleConfig();
+  const router = useRouter();
   const transactions = getTransactions();
   const txn = transactions.find((t) => t.id === txnId) || transactions[0];
 
@@ -50,7 +53,7 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ tx
             Back
           </Link>
         </Button>
-        <Button variant="outline">
+        <Button variant="outline" onClick={() => toast.warning("Dispute case opened for transaction " + txn.id + ". The card network will investigate within 45-90 days.")}>
           <AlertTriangle className="w-4 h-4" />
           Dispute
         </Button>
@@ -168,8 +171,8 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ tx
                         </div>
                         <p className="text-sm text-muted-foreground">Receipt uploaded via mobile camera</p>
                         <div className="flex justify-center gap-2 mt-3">
-                          <Button variant="outline" size="sm">View Full</Button>
-                          <Button variant="outline" size="sm">Re-upload</Button>
+                          <Button variant="outline" size="sm" onClick={() => toast.info("Opening full-size receipt viewer...")}>View Full</Button>
+                          <Button variant="outline" size="sm" onClick={() => toast.info("Re-uploading receipt for transaction " + txn.id)}>Re-upload</Button>
                         </div>
                       </div>
                     ) : (
@@ -178,11 +181,11 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ tx
                         <p className="font-medium text-sm">No receipt attached</p>
                         <p className="text-xs text-muted-foreground mt-1">Upload a receipt image or PDF</p>
                         <div className="flex justify-center gap-2 mt-4">
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" onClick={() => toast.info("Opening file picker for receipt upload...")}>
                             <Upload className="w-3 h-3 mr-1" />
                             Upload
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" onClick={() => toast.info("Opening camera for receipt capture...")}>
                             <Camera className="w-3 h-3 mr-1" />
                             Camera
                           </Button>
@@ -204,7 +207,7 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ tx
                       <div className="flex gap-1.5 flex-wrap mt-1.5">
                         <Badge variant="secondary" className="text-xs">business-travel</Badge>
                         <Badge variant="secondary" className="text-xs">Q4-review</Badge>
-                        <Button variant="outline" size="sm" className="h-6 text-xs">+ Add Tag</Button>
+                        <Button variant="outline" size="sm" className="h-6 text-xs" onClick={() => toast.info("Tag added to transaction")}>+ Add Tag</Button>
                       </div>
                     </div>
                     <div>
@@ -222,7 +225,7 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ tx
                         placeholder="Add notes..."
                       />
                     </div>
-                    <Button size="sm">Save Notes</Button>
+                    <Button size="sm" onClick={() => toast.success("Notes and tags saved for transaction " + txn.id)}>Save Notes</Button>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -238,7 +241,7 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ tx
                       If you believe this transaction is fraudulent or incorrect, you can raise a dispute.
                       The card network will investigate within 45-90 days.
                     </p>
-                    <Button className="mt-4" variant="destructive">
+                    <Button className="mt-4" variant="destructive" onClick={() => toast.warning("Dispute case opened for transaction " + txn.id + ". The card network will investigate within 45-90 days.")}>
                       <AlertTriangle className="w-4 h-4" />
                       Raise Dispute
                     </Button>
@@ -295,21 +298,21 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ tx
             <CardContent className="space-y-2">
               {mc.expenseManagement && (
                 <>
-                  <Button variant="outline" size="sm" className="w-full justify-start">
+                  <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => router.push(`/expenses/new`)}>
                     <Receipt className="w-3.5 h-3.5 mr-2" />
                     Create Expense
                   </Button>
-                  <Button variant="outline" size="sm" className="w-full justify-start">
+                  <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => toast.success(`Transaction categorized as ${txn.mccCategory}`)}>
                     <Tag className="w-3.5 h-3.5 mr-2" />
                     Categorize
                   </Button>
-                  <Button variant="outline" size="sm" className="w-full justify-start">
+                  <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => toast.info("Navigate to Expense Reports to add this transaction to a report")}>
                     <FileText className="w-3.5 h-3.5 mr-2" />
                     Add to Report
                   </Button>
                 </>
               )}
-              <Button variant="outline" size="sm" className="w-full justify-start">
+              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => router.push(`/cards/${txn.cardId}`)}>
                 <CreditCard className="w-3.5 h-3.5 mr-2" />
                 View Card
               </Button>

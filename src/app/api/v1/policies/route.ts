@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPolicies, addPolicy, updatePolicy } from "@/lib/store";
+import { getPolicies, addPolicy, updatePolicy, deletePolicy } from "@/lib/store";
 
 export async function GET() {
   try {
@@ -61,6 +61,25 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to update policy", details: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const id = request.nextUrl.searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ error: "Missing required query param: id" }, { status: 400 });
+    }
+    const deleted = deletePolicy(id);
+    if (!deleted) {
+      return NextResponse.json({ error: "Policy not found" }, { status: 404 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to delete policy", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

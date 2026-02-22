@@ -438,11 +438,11 @@ export default function CardDetailPage({ params }: { params: Promise<{ cardId: s
           <CardVisual3D card={{ ...card, status: cardStatus }} />
           {card.type === "VIRTUAL" && (
             <div className="flex gap-2 w-full max-w-sm">
-              <Button variant="outline" size="sm" className="flex-1">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => { navigator.clipboard.writeText(`****${card.last4Digits}`); toast.success("Card number copied to clipboard"); }}>
                 <Copy className="w-3 h-3 mr-1" />
                 Copy Number
               </Button>
-              <Button variant="outline" size="sm" className="flex-1">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => { navigator.clipboard.writeText("***"); toast.success("CVV copied to clipboard"); }}>
                 <Copy className="w-3 h-3 mr-1" />
                 Copy CVV
               </Button>

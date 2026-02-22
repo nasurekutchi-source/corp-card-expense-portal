@@ -195,6 +195,7 @@ export default function NewExpensePage() {
   const [ocrFields, setOcrFields] = useState<Record<string, any> | null>(null);
   const [ocrConfidence, setOcrConfidence] = useState<Record<string, number> | null>(null);
   const [gstFromOcr, setGstFromOcr] = useState(false);
+  const [ocrAutoFilled, setOcrAutoFilled] = useState<string[]>([]);
 
   // Load reference data
   useEffect(() => {
@@ -398,34 +399,17 @@ export default function NewExpensePage() {
       setOcrFields(receipt.ocrData);
       setOcrConfidence(receipt.ocrConfidence);
 
-      // Auto-fill form fields from OCR data
-      const ocrGstRate = receipt.ocrData.gstRate;
-      const ocrIgst = receipt.ocrData.igst;
-      const ocrCgst = receipt.ocrData.cgst;
+      // Mark receipt as uploaded but do NOT auto-fill form with simulated data.
+      // OCR results are stored for user review — user decides what to apply.
       setForm((prev) => ({
         ...prev,
         hasReceipt: true,
         receiptFilename: file.name,
-        merchantName: receipt.ocrData.merchantName || prev.merchantName,
-        amount: receipt.ocrData.amount ? String(receipt.ocrData.amount) : prev.amount,
-        date: receipt.ocrData.date || prev.date,
-        currency: receipt.ocrData.currency || prev.currency,
-        supplierGstin: receipt.ocrData.gstin || prev.supplierGstin,
-        categoryCode: receipt.ocrData.category || prev.categoryCode,
-        subcategoryCode: receipt.ocrData.subcategory || prev.subcategoryCode,
-        glCode: receipt.ocrData.category && receipt.ocrData.subcategory
-          ? glCodeForSub(receipt.ocrData.category, receipt.ocrData.subcategory)
-          : prev.glCode,
-        gstSlab: ocrGstRate != null ? ocrGstRate : prev.gstSlab,
-        placeOfSupply: ocrIgst > 0 ? "different" : (ocrCgst > 0 ? "same" : prev.placeOfSupply),
       }));
-      if (ocrGstRate != null) {
-        setGstFromOcr(true);
-      }
 
       const fieldCount = Object.keys(receipt.ocrData).length;
       const confidence = Math.round((receipt.ocrConfidence?.overall || 0) * 100);
-      toast.success(`Receipt uploaded — OCR extracted ${fieldCount} fields (${confidence}% confidence)`);
+      toast.success(`Receipt uploaded — OCR extracted ${fieldCount} fields (${confidence}% confidence). Review and apply below.`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Receipt upload failed");
       setReceiptPreview(null);
@@ -441,6 +425,7 @@ export default function NewExpensePage() {
     setOcrFields(null);
     setOcrConfidence(null);
     setGstFromOcr(false);
+    setOcrAutoFilled([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
@@ -788,6 +773,106 @@ export default function NewExpensePage() {
                         </div>
                       )}
 
+                      {/* OCR Extracted Data — Review & Apply */}
+                      {ocrFields && (
+                        <div className="bg-blue-50 dark:bg-blue-500/5 border border-blue-200 dark:border-blue-500/20 rounded-lg p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-medium flex items-center gap-1.5 text-blue-700 dark:text-blue-400">
+                              <Sparkles className="w-3 h-3" />
+                              {ocrAutoFilled.length > 0
+                                ? `Applied ${ocrAutoFilled.length} fields to form`
+                                : `OCR extracted ${Object.keys(ocrFields).length} fields — review below`}
+                            </p>
+                            {ocrAutoFilled.length === 0 && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="h-6 text-[11px] px-2"
+                                onClick={() => {
+                                  const filled: string[] = [];
+                                  setForm((prev: FormState) => {
+                                    const next = { ...prev };
+                                    if (ocrFields.merchantName) { next.merchantName = ocrFields.merchantName; filled.push("merchantName"); }
+                                    if (ocrFields.amount) { next.amount = String(ocrFields.amount); filled.push("amount"); }
+                                    if (ocrFields.date) { next.date = ocrFields.date; filled.push("date"); }
+                                    if (ocrFields.category) {
+                                      const cat = EXPENSE_CATEGORIES.find((c) => c.code === ocrFields.category);
+                                      if (cat) {
+                                        next.categoryCode = cat.code;
+                                        if (cat.subcategories.length > 0) next.subcategoryCode = cat.subcategories[0].code;
+                                        next.glCode = glCodeForSub(cat.code, next.subcategoryCode);
+                                        filled.push("categoryCode");
+                                      }
+                                    }
+                                    if (ocrFields.gstin) { next.supplierGstin = ocrFields.gstin; filled.push("supplierGstin"); }
+                                    if (ocrFields.gstRate) { next.gstSlab = Number(ocrFields.gstRate); filled.push("gstSlab"); }
+                                    return next;
+                                  });
+                                  setOcrAutoFilled(filled);
+                                  if (ocrFields.gstin || ocrFields.gstRate) {
+                                    setGstFromOcr(true);
+                                    setShowGst(true);
+                                  }
+                                  toast.success(`Applied ${filled.length} OCR fields to form`);
+                                }}
+                              >
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                Apply All to Form
+                              </Button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                            {ocrFields.merchantName && (
+                              <div className="text-[11px]">
+                                <span className="text-muted-foreground">Merchant:</span>{" "}
+                                <span className={`font-medium ${ocrAutoFilled.includes("merchantName") ? "text-blue-700 dark:text-blue-400" : ""}`}>{ocrFields.merchantName}</span>
+                              </div>
+                            )}
+                            {ocrFields.amount && (
+                              <div className="text-[11px]">
+                                <span className="text-muted-foreground">Amount:</span>{" "}
+                                <span className={`font-medium ${ocrAutoFilled.includes("amount") ? "text-blue-700 dark:text-blue-400" : ""}`}>{"\u20B9"}{Number(ocrFields.amount).toLocaleString("en-IN")}</span>
+                              </div>
+                            )}
+                            {ocrFields.date && (
+                              <div className="text-[11px]">
+                                <span className="text-muted-foreground">Date:</span>{" "}
+                                <span className={`font-medium ${ocrAutoFilled.includes("date") ? "text-blue-700 dark:text-blue-400" : ""}`}>{ocrFields.date}</span>
+                              </div>
+                            )}
+                            {ocrFields.gstin && (
+                              <div className="text-[11px]">
+                                <span className="text-muted-foreground">GSTIN:</span>{" "}
+                                <span className={`font-medium font-mono ${ocrAutoFilled.includes("supplierGstin") ? "text-blue-700 dark:text-blue-400" : ""}`}>{ocrFields.gstin}</span>
+                              </div>
+                            )}
+                            {ocrFields.gstRate && (
+                              <div className="text-[11px]">
+                                <span className="text-muted-foreground">GST Rate:</span>{" "}
+                                <span className={`font-medium ${ocrAutoFilled.includes("gstSlab") ? "text-blue-700 dark:text-blue-400" : ""}`}>{ocrFields.gstRate}%</span>
+                              </div>
+                            )}
+                            {ocrFields.category && (
+                              <div className="text-[11px]">
+                                <span className="text-muted-foreground">Category:</span>{" "}
+                                <span className={`font-medium ${ocrAutoFilled.includes("categoryCode") ? "text-blue-700 dark:text-blue-400" : ""}`}>{getCategoryByCode(ocrFields.category)?.label || ocrFields.category}</span>
+                              </div>
+                            )}
+                            {ocrFields.invoiceNumber && (
+                              <div className="text-[11px]"><span className="text-muted-foreground">Invoice #:</span> <span className="font-medium font-mono">{ocrFields.invoiceNumber}</span></div>
+                            )}
+                            {ocrFields.baseAmount && (
+                              <div className="text-[11px]"><span className="text-muted-foreground">Base Amt:</span> <span className="font-medium">{"\u20B9"}{Number(ocrFields.baseAmount).toLocaleString("en-IN")}</span></div>
+                            )}
+                          </div>
+                          {ocrAutoFilled.length > 0 && (
+                            <p className="text-[10px] text-blue-600/70 dark:text-blue-400/60 mt-2 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" /> Fields highlighted in blue were applied to the form
+                            </p>
+                          )}
+                        </div>
+                      )}
+
                       {/* Re-upload button */}
                       <Button
                         variant="outline"
@@ -826,15 +911,21 @@ export default function NewExpensePage() {
                     </div>
 
                     {/* Merchant */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Merchant Name <span className="text-red-500">*</span></label>
+                    <div className={`space-y-1.5 ${ocrAutoFilled.includes("merchantName") ? "border-l-2 border-blue-400 pl-2" : ""}`}>
+                      <label className="text-xs font-medium flex items-center gap-1">
+                        Merchant Name <span className="text-red-500">*</span>
+                        {ocrAutoFilled.includes("merchantName") && <Sparkles className="w-3 h-3 text-blue-500" />}
+                      </label>
                       <Input value={form.merchantName} onChange={(e) => updateField("merchantName", e.target.value)}
                         placeholder="Enter merchant name" className="h-9" />
                     </div>
 
                     {/* Amount + Currency */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Amount <span className="text-red-500">*</span></label>
+                    <div className={`space-y-1.5 ${ocrAutoFilled.includes("amount") ? "border-l-2 border-blue-400 pl-2" : ""}`}>
+                      <label className="text-xs font-medium flex items-center gap-1">
+                        Amount <span className="text-red-500">*</span>
+                        {ocrAutoFilled.includes("amount") && <Sparkles className="w-3 h-3 text-blue-500" />}
+                      </label>
                       <div className="flex gap-2">
                         <select className={`${selectCls} w-20 shrink-0`} value={form.currency}
                           onChange={(e) => updateField("currency", e.target.value)}>
@@ -852,15 +943,21 @@ export default function NewExpensePage() {
                     </div>
 
                     {/* Date */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Date <span className="text-red-500">*</span></label>
+                    <div className={`space-y-1.5 ${ocrAutoFilled.includes("date") ? "border-l-2 border-blue-400 pl-2" : ""}`}>
+                      <label className="text-xs font-medium flex items-center gap-1">
+                        Date <span className="text-red-500">*</span>
+                        {ocrAutoFilled.includes("date") && <Sparkles className="w-3 h-3 text-blue-500" />}
+                      </label>
                       <Input type="date" className="h-9" value={form.date}
                         onChange={(e) => updateField("date", e.target.value)} />
                     </div>
 
                     {/* Category */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Category <span className="text-red-500">*</span></label>
+                    <div className={`space-y-1.5 ${ocrAutoFilled.includes("categoryCode") ? "border-l-2 border-blue-400 pl-2" : ""}`}>
+                      <label className="text-xs font-medium flex items-center gap-1">
+                        Category <span className="text-red-500">*</span>
+                        {ocrAutoFilled.includes("categoryCode") && <Sparkles className="w-3 h-3 text-blue-500" />}
+                      </label>
                       <select className={selectCls} value={form.categoryCode}
                         onChange={(e) => updateField("categoryCode", e.target.value)}>
                         {EXPENSE_CATEGORIES.map((cat) => (
@@ -870,8 +967,11 @@ export default function NewExpensePage() {
                     </div>
 
                     {/* Subcategory */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Subcategory <span className="text-red-500">*</span></label>
+                    <div className={`space-y-1.5 ${ocrAutoFilled.includes("subcategoryCode") ? "border-l-2 border-blue-400 pl-2" : ""}`}>
+                      <label className="text-xs font-medium flex items-center gap-1">
+                        Subcategory <span className="text-red-500">*</span>
+                        {ocrAutoFilled.includes("subcategoryCode") && <Sparkles className="w-3 h-3 text-blue-500" />}
+                      </label>
                       <select className={selectCls} value={form.subcategoryCode}
                         onChange={(e) => updateField("subcategoryCode", e.target.value)}>
                         {subcategories.map((sub) => (

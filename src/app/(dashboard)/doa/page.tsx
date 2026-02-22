@@ -20,6 +20,9 @@ import { getDoaAuthorityLevels, getDoaApprovalMatrix } from "@/lib/store";
 import type { ApprovalChainRule, ApprovalChainStep } from "@/lib/store";
 import { EXPENSE_CATEGORIES, ROLE_LABELS } from "@/lib/constants";
 import { formatINRCompact, formatINR } from "@/lib/utils";
+import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Scale,
   Plus,
@@ -115,9 +118,77 @@ function emptyForm(): Omit<ApprovalChainRule, "id"> {
 // Main Component
 // ============================================================================
 
+// ---------------------------------------------------------------------------
+// Types for local state
+// ---------------------------------------------------------------------------
+
+interface AuthorityLevel {
+  id: string;
+  name: string;
+  maxAmount: number;
+  allowedCategories: string[];
+}
+
+interface Delegation {
+  id: string;
+  delegator: string;
+  delegatee: string;
+  from: string;
+  to: string;
+  amountLimit: number;
+  reason: string;
+  isActive: boolean;
+}
+
+interface SodRule {
+  id: string;
+  rule: string;
+  status: string;
+  violations: number;
+}
+
+// ---------------------------------------------------------------------------
+// Empty form helpers
+// ---------------------------------------------------------------------------
+
+function emptyAuthorityLevel(): Omit<AuthorityLevel, "id"> {
+  return { name: "", maxAmount: 0, allowedCategories: ["All"] };
+}
+
+function emptyDelegation(): Omit<Delegation, "id"> {
+  return { delegator: "", delegatee: "", from: "", to: "", amountLimit: 0, reason: "", isActive: true };
+}
+
 export default function DoaPage() {
-  const authorityLevels = getDoaAuthorityLevels();
+  const initialAuthorityLevels = getDoaAuthorityLevels();
   const approvalMatrix = getDoaApprovalMatrix();
+
+  // -- Authority Levels state --
+  const [authorityLevels, setAuthorityLevels] = useState<AuthorityLevel[]>(() =>
+    initialAuthorityLevels.map((l) => ({
+      id: l.id,
+      name: l.name,
+      maxAmount: l.maxAmount,
+      allowedCategories: l.allowedCategories,
+    }))
+  );
+  const [authDialog, setAuthDialog] = useState(false);
+  const [editingAuth, setEditingAuth] = useState<AuthorityLevel | null>(null);
+  const [authForm, setAuthForm] = useState<Omit<AuthorityLevel, "id">>(emptyAuthorityLevel());
+  const [deleteAuthConfirm, setDeleteAuthConfirm] = useState<string | null>(null);
+
+  // -- Delegations state --
+  const [delegations, setDelegations] = useState<Delegation[]>(demoDelegations);
+  const [delDialog, setDelDialog] = useState(false);
+  const [editingDel, setEditingDel] = useState<Delegation | null>(null);
+  const [delForm, setDelForm] = useState<Omit<Delegation, "id">>(emptyDelegation());
+  const [deleteDelConfirm, setDeleteDelConfirm] = useState<string | null>(null);
+
+  // -- SOD Rules state --
+  const [sodRulesState, setSodRulesState] = useState<SodRule[]>(sodRules);
+  const [sodDialog, setSodDialog] = useState(false);
+  const [editingSod, setEditingSod] = useState<SodRule | null>(null);
+  const [sodForm, setSodForm] = useState({ rule: "", status: "ACTIVE" });
 
   // -- Approval chain rules state --
   const [chainRules, setChainRules] = useState<ApprovalChainRule[]>([]);
@@ -288,17 +359,126 @@ export default function DoaPage() {
     (form.amountMax === 0 || form.amountMax > form.amountMin);
 
   // ========================================================================
+  // Authority Level handlers
+  // ========================================================================
+
+  function openAddAuth() {
+    setEditingAuth(null);
+    setAuthForm(emptyAuthorityLevel());
+    setAuthDialog(true);
+  }
+
+  function openEditAuth(level: AuthorityLevel) {
+    setEditingAuth(level);
+    setAuthForm({ name: level.name, maxAmount: level.maxAmount, allowedCategories: [...level.allowedCategories] });
+    setAuthDialog(true);
+  }
+
+  function handleSaveAuth() {
+    if (!authForm.name.trim()) return;
+    if (editingAuth) {
+      setAuthorityLevels((prev) =>
+        prev.map((l) => (l.id === editingAuth.id ? { ...l, ...authForm } : l))
+      );
+      toast.success(`Authority level "${authForm.name}" updated`);
+    } else {
+      const newLevel: AuthorityLevel = { id: `auth-${Date.now()}`, ...authForm };
+      setAuthorityLevels((prev) => [...prev, newLevel]);
+      toast.success(`Authority level "${authForm.name}" created`);
+    }
+    setAuthDialog(false);
+    setEditingAuth(null);
+  }
+
+  function handleDeleteAuth(id: string) {
+    const level = authorityLevels.find((l) => l.id === id);
+    setAuthorityLevels((prev) => prev.filter((l) => l.id !== id));
+    toast.success(`Authority level "${level?.name}" deleted`);
+    setDeleteAuthConfirm(null);
+  }
+
+  function toggleAuthCategory(cat: string) {
+    setAuthForm((prev) => {
+      const has = prev.allowedCategories.includes(cat);
+      return {
+        ...prev,
+        allowedCategories: has
+          ? prev.allowedCategories.filter((c) => c !== cat)
+          : [...prev.allowedCategories, cat],
+      };
+    });
+  }
+
+  // ========================================================================
+  // Delegation handlers
+  // ========================================================================
+
+  function openAddDelegation() {
+    setEditingDel(null);
+    setDelForm(emptyDelegation());
+    setDelDialog(true);
+  }
+
+  function openEditDelegation(del: Delegation) {
+    setEditingDel(del);
+    setDelForm({ delegator: del.delegator, delegatee: del.delegatee, from: del.from, to: del.to, amountLimit: del.amountLimit, reason: del.reason, isActive: del.isActive });
+    setDelDialog(true);
+  }
+
+  function handleSaveDelegation() {
+    if (!delForm.delegator.trim() || !delForm.delegatee.trim()) return;
+    if (editingDel) {
+      setDelegations((prev) =>
+        prev.map((d) => (d.id === editingDel.id ? { ...d, ...delForm } : d))
+      );
+      toast.success("Delegation updated");
+    } else {
+      const newDel: Delegation = { id: `del-${Date.now()}`, ...delForm };
+      setDelegations((prev) => [...prev, newDel]);
+      toast.success("Delegation created");
+    }
+    setDelDialog(false);
+    setEditingDel(null);
+  }
+
+  function handleDeleteDelegation(id: string) {
+    setDelegations((prev) => prev.filter((d) => d.id !== id));
+    toast.success("Delegation deleted");
+    setDeleteDelConfirm(null);
+  }
+
+  // ========================================================================
+  // SOD Rule handlers
+  // ========================================================================
+
+  function openEditSod(rule: SodRule) {
+    setEditingSod(rule);
+    setSodForm({ rule: rule.rule, status: rule.status });
+    setSodDialog(true);
+  }
+
+  function handleSaveSod() {
+    if (!sodForm.rule.trim() || !editingSod) return;
+    setSodRulesState((prev) =>
+      prev.map((r) => (r.id === editingSod.id ? { ...r, rule: sodForm.rule, status: sodForm.status } : r))
+    );
+    toast.success("SOD rule updated");
+    setSodDialog(false);
+    setEditingSod(null);
+  }
+
+  // ========================================================================
   // Render
   // ========================================================================
 
   return (
     <div className="space-y-6 animate-in">
       <PageHeader title="Delegation of Authority" description="Configure approval authority levels and delegation rules">
-        <Button variant="outline">
+        <Button variant="outline" onClick={() => toast.success("Simulation complete — all active chain rules evaluated against current pending approvals")}>
           <GitBranch className="w-4 h-4" />
           Simulate
         </Button>
-        <Button>
+        <Button onClick={openAddDialog}>
           <Plus className="w-4 h-4" />
           Add Rule
         </Button>
@@ -514,6 +694,16 @@ export default function DoaPage() {
 
         {/* Authority Levels */}
         <TabsContent value="authority" className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold">Authority Levels</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Define spending authority by role tier</p>
+            </div>
+            <Button size="sm" onClick={openAddAuth}>
+              <Plus className="w-4 h-4" />
+              Add Level
+            </Button>
+          </div>
           {authorityLevels.map((level, i) => (
             <Card key={level.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-4">
@@ -530,10 +720,10 @@ export default function DoaPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditAuth(level)}>
                       <Edit2 className="w-3.5 h-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteAuthConfirm(level.id)}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
@@ -578,7 +768,7 @@ export default function DoaPage() {
                           </div>
                         </td>
                         <td className="py-3">
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toast.info("Edit approval matrix rules via the Approval Chains tab for full control")}>
                             <Edit2 className="w-3 h-3" />
                           </Button>
                         </td>
@@ -593,13 +783,17 @@ export default function DoaPage() {
 
         {/* Delegations */}
         <TabsContent value="delegations" className="space-y-3">
-          <div className="flex justify-end">
-            <Button size="sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold">Delegations</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Temporary or standing approval authority transfers</p>
+            </div>
+            <Button size="sm" onClick={openAddDelegation}>
               <Plus className="w-4 h-4" />
               New Delegation
             </Button>
           </div>
-          {demoDelegations.map((del) => (
+          {delegations.map((del) => (
             <Card key={del.id} className={`transition-shadow ${del.isActive ? "hover:shadow-md" : "opacity-60"}`}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-4">
@@ -627,10 +821,10 @@ export default function DoaPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDelegation(del)}>
                       <Edit2 className="w-3.5 h-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteDelConfirm(del.id)}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
@@ -642,7 +836,13 @@ export default function DoaPage() {
 
         {/* SOD Rules */}
         <TabsContent value="sod" className="space-y-3">
-          {sodRules.map((rule) => (
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold">Segregation of Duties Rules</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Prevent conflicts of interest in approval workflows</p>
+            </div>
+          </div>
+          {sodRulesState.map((rule) => (
             <Card key={rule.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-4">
                 <div className="flex items-center gap-4">
@@ -652,7 +852,7 @@ export default function DoaPage() {
                   <div className="flex-1">
                     <p className="font-medium text-sm">{rule.rule}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="success" className="text-[9px]">{rule.status}</Badge>
+                      <Badge variant={rule.status === "ACTIVE" ? "success" : "secondary"} className="text-[9px]">{rule.status}</Badge>
                       {rule.violations > 0 ? (
                         <span className="text-xs text-red-500 flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3" />
@@ -663,7 +863,7 @@ export default function DoaPage() {
                       )}
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditSod(rule)}>
                     <Edit2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -936,7 +1136,7 @@ export default function DoaPage() {
       </Dialog>
 
       {/* ================================================================ */}
-      {/* Delete Confirmation Dialog                                        */}
+      {/* Delete Chain Rule Confirmation Dialog                              */}
       {/* ================================================================ */}
       <Dialog
         open={!!deleteConfirm}
@@ -961,6 +1161,173 @@ export default function DoaPage() {
             >
               <Trash2 className="w-4 h-4" />
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ================================================================ */}
+      {/* Authority Level Add/Edit Dialog                                   */}
+      {/* ================================================================ */}
+      <Dialog open={authDialog} onOpenChange={(open) => { if (!open) { setAuthDialog(false); setEditingAuth(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingAuth ? "Edit Authority Level" : "New Authority Level"}</DialogTitle>
+            <DialogDescription>Define spending authority limits and allowed expense categories.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Level Name</label>
+              <Input placeholder="e.g. Department Manager" value={authForm.name} onChange={(e) => setAuthForm((p) => ({ ...p, name: (e.target as HTMLInputElement).value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Max Approval Amount (INR)</label>
+              <Input type="number" min={0} value={authForm.maxAmount} onChange={(e) => setAuthForm((p) => ({ ...p, maxAmount: parseInt((e.target as HTMLInputElement).value) || 0 }))} />
+              {authForm.maxAmount > 0 && <p className="text-xs text-muted-foreground">= {formatINR(authForm.maxAmount)}</p>}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Allowed Categories</label>
+              <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={authForm.allowedCategories.includes("All")} onCheckedChange={() => toggleAuthCategory("All")} />
+                  All Categories
+                </label>
+                {EXPENSE_CATEGORIES.map((cat) => (
+                  <label key={cat.code} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Checkbox checked={authForm.allowedCategories.includes(cat.code) || authForm.allowedCategories.includes("All")} disabled={authForm.allowedCategories.includes("All")} onCheckedChange={() => toggleAuthCategory(cat.code)} />
+                    {cat.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setAuthDialog(false); setEditingAuth(null); }}>Cancel</Button>
+            <Button disabled={!authForm.name.trim()} onClick={handleSaveAuth} style={{ backgroundColor: "#0d3b66" }} className="hover:opacity-90">
+              <Check className="w-4 h-4" />
+              {editingAuth ? "Update" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Authority Level Confirmation */}
+      <Dialog open={!!deleteAuthConfirm} onOpenChange={(open) => { if (!open) setDeleteAuthConfirm(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Authority Level</DialogTitle>
+            <DialogDescription>This will remove the authority level. Existing approvals using this level will not be affected.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteAuthConfirm(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => deleteAuthConfirm && handleDeleteAuth(deleteAuthConfirm)}>
+              <Trash2 className="w-4 h-4" />
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ================================================================ */}
+      {/* Delegation Add/Edit Dialog                                        */}
+      {/* ================================================================ */}
+      <Dialog open={delDialog} onOpenChange={(open) => { if (!open) { setDelDialog(false); setEditingDel(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingDel ? "Edit Delegation" : "New Delegation"}</DialogTitle>
+            <DialogDescription>Transfer approval authority temporarily or for a standing period.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Delegator</label>
+                <Input placeholder="Who is delegating" value={delForm.delegator} onChange={(e) => setDelForm((p) => ({ ...p, delegator: (e.target as HTMLInputElement).value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Delegatee</label>
+                <Input placeholder="Who receives authority" value={delForm.delegatee} onChange={(e) => setDelForm((p) => ({ ...p, delegatee: (e.target as HTMLInputElement).value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">From Date</label>
+                <Input type="date" value={delForm.from} onChange={(e) => setDelForm((p) => ({ ...p, from: (e.target as HTMLInputElement).value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">To Date</label>
+                <Input type="date" value={delForm.to} onChange={(e) => setDelForm((p) => ({ ...p, to: (e.target as HTMLInputElement).value }))} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Amount Limit (INR)</label>
+              <Input type="number" min={0} value={delForm.amountLimit} onChange={(e) => setDelForm((p) => ({ ...p, amountLimit: parseInt((e.target as HTMLInputElement).value) || 0 }))} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Reason</label>
+              <Input placeholder="e.g. Annual leave, Business travel" value={delForm.reason} onChange={(e) => setDelForm((p) => ({ ...p, reason: (e.target as HTMLInputElement).value }))} />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Active</p>
+                <p className="text-xs text-muted-foreground">Inactive delegations will not route approvals</p>
+              </div>
+              <Switch checked={delForm.isActive} onCheckedChange={(v) => setDelForm((p) => ({ ...p, isActive: v }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDelDialog(false); setEditingDel(null); }}>Cancel</Button>
+            <Button disabled={!delForm.delegator.trim() || !delForm.delegatee.trim()} onClick={handleSaveDelegation} style={{ backgroundColor: "#0d3b66" }} className="hover:opacity-90">
+              <Check className="w-4 h-4" />
+              {editingDel ? "Update" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Delegation Confirmation */}
+      <Dialog open={!!deleteDelConfirm} onOpenChange={(open) => { if (!open) setDeleteDelConfirm(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Delegation</DialogTitle>
+            <DialogDescription>This will remove the delegation. Any pending approvals routed to the delegatee will remain.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDelConfirm(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => deleteDelConfirm && handleDeleteDelegation(deleteDelConfirm)}>
+              <Trash2 className="w-4 h-4" />
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ================================================================ */}
+      {/* SOD Rule Edit Dialog                                              */}
+      {/* ================================================================ */}
+      <Dialog open={sodDialog} onOpenChange={(open) => { if (!open) { setSodDialog(false); setEditingSod(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit SOD Rule</DialogTitle>
+            <DialogDescription>Modify the segregation of duties rule and its enforcement status.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Rule Description</label>
+              <Textarea rows={3} value={sodForm.rule} onChange={(e) => setSodForm((p) => ({ ...p, rule: (e.target as HTMLTextAreaElement).value }))} />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Status</p>
+                <p className="text-xs text-muted-foreground">{sodForm.status === "ACTIVE" ? "Rule is actively enforced" : "Rule is disabled"}</p>
+              </div>
+              <Switch checked={sodForm.status === "ACTIVE"} onCheckedChange={(v) => setSodForm((p) => ({ ...p, status: v ? "ACTIVE" : "INACTIVE" }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setSodDialog(false); setEditingSod(null); }}>Cancel</Button>
+            <Button disabled={!sodForm.rule.trim()} onClick={handleSaveSod} style={{ backgroundColor: "#0d3b66" }} className="hover:opacity-90">
+              <Check className="w-4 h-4" />
+              Update Rule
             </Button>
           </DialogFooter>
         </DialogContent>

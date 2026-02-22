@@ -12,6 +12,7 @@ import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
 import { getExpenseReports } from "@/lib/store";
 import { formatDate, formatINRCompact } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   FileText,
   Plus,
@@ -55,7 +56,14 @@ export default function ExpenseReportsPage() {
   return (
     <div className="space-y-6 animate-in">
       <PageHeader title="Expense Reports" description="Create and track expense reports for reimbursement">
-        <Button variant="outline">
+        <Button variant="outline" onClick={() => {
+          const csv = ["Report #,Title,Employee,Department,Status,Amount,Expenses,Submitted", ...expenseReports.map(r => `"${r.reportNumber}","${r.title}","${r.employeeName}","${r.department}","${r.status}",${r.totalAmount},${r.expenseCount},"${r.submittedAt || ""}"`)].join("\n");
+          const blob = new Blob([csv], { type: "text/csv" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a"); a.href = url; a.download = "expense-reports.csv"; a.click();
+          URL.revokeObjectURL(url);
+          toast.success(`Exported ${expenseReports.length} reports to CSV`);
+        }}>
           <Download className="w-4 h-4" />
           Export
         </Button>
@@ -215,7 +223,7 @@ export default function ExpenseReportsPage() {
                 {/* Actions */}
                 <div className="flex items-center gap-1 shrink-0">
                   {report.status === "DRAFT" && (
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={(e) => { e.preventDefault(); toast.success(`Report ${report.reportNumber} submitted for approval`); }}>
                       <Send className="w-3 h-3 mr-1" />
                       Submit
                     </Button>

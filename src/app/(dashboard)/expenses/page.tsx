@@ -11,6 +11,7 @@ import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
 import { getExpenses } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   Receipt,
   Plus,
@@ -71,7 +72,14 @@ export default function ExpensesPage() {
   return (
     <div className="space-y-6 animate-in">
       <PageHeader title="Expenses" description="Manage and track all corporate expenses">
-        <Button variant="outline">
+        <Button variant="outline" onClick={() => {
+          const csv = ["Merchant,Category,Employee,Amount,Date,Type,Policy Status", ...expenses.map(e => `"${e.merchantName}","${e.category}","${e.employeeName}",${e.amount},"${e.date}","${e.type}","${e.policyStatus}"`)].join("\n");
+          const blob = new Blob([csv], { type: "text/csv" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a"); a.href = url; a.download = "expenses.csv"; a.click();
+          URL.revokeObjectURL(url);
+          toast.success(`Exported ${expenses.length} expenses to CSV`);
+        }}>
           <Download className="w-4 h-4" />
           Export
         </Button>
