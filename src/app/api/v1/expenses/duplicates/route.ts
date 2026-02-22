@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { detectDuplicateExpenses } from "@/lib/store";
+import { detectDuplicateExpenses } from "@/lib/repository";
 
 export async function GET(req: NextRequest) {
   const amount = parseFloat(req.nextUrl.searchParams.get("amount") || "0");
@@ -12,6 +12,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json([]);
   }
 
-  const duplicates = detectDuplicateExpenses(amount, merchant, date, employeeId, excludeId);
+  const duplicates = await detectDuplicateExpenses(amount, merchant, date, employeeId, excludeId);
   return NextResponse.json(duplicates);
 }

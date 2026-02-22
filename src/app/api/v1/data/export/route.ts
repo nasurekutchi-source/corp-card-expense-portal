@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { exportStore } from "@/lib/store";
+import { exportStore } from "@/lib/repository";
 
 export async function GET() {
   try {
-    const data = exportStore();
+    const data = await exportStore();
     return NextResponse.json({ data });
   } catch (error) {
     return NextResponse.json(

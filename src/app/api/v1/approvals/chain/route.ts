@@ -4,16 +4,16 @@ import {
   addApprovalChainRule,
   updateApprovalChainRule,
   deleteApprovalChainRule,
-} from "@/lib/store";
+} from "@/lib/repository";
 
 export async function GET() {
-  const rules = getApprovalChainRules();
+  const rules = await getApprovalChainRules();
   return NextResponse.json({ data: rules });
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const rule = addApprovalChainRule(body);
+  const rule = await addApprovalChainRule(body);
   return NextResponse.json({ data: rule }, { status: 201 });
 }
 
@@ -23,7 +23,7 @@ export async function PUT(req: NextRequest) {
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
-  const updated = updateApprovalChainRule(id, updates);
+  const updated = await updateApprovalChainRule(id, updates);
   if (!updated) {
     return NextResponse.json({ error: "Rule not found" }, { status: 404 });
   }
@@ -36,7 +36,7 @@ export async function DELETE(req: NextRequest) {
   if (!id) {
     return NextResponse.json({ error: "id query param is required" }, { status: 400 });
   }
-  const deleted = deleteApprovalChainRule(id);
+  const deleted = await deleteApprovalChainRule(id);
   if (!deleted) {
     return NextResponse.json({ error: "Rule not found" }, { status: 404 });
   }

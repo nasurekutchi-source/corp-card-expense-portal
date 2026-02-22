@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getExpenses, addExpense } from "@/lib/store";
+import { getExpenses, addExpense } from "@/lib/repository";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       search: searchParams.get("search") || undefined,
     };
 
-    const expenses = getExpenses(filters);
+    const expenses = await getExpenses(filters);
     return NextResponse.json({ data: expenses, total: expenses.length });
   } catch (error) {
     return NextResponse.json(
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       hasReceipt: body.hasReceipt === true,
     };
 
-    const expense = addExpense(expenseData);
+    const expense = await addExpense(expenseData);
     return NextResponse.json({ data: expense }, { status: 201 });
   } catch (error) {
     return NextResponse.json(

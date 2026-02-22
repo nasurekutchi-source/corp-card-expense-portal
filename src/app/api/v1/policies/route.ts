@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPolicies, addPolicy, updatePolicy, deletePolicy } from "@/lib/store";
+import { getPolicies, addPolicy, updatePolicy, deletePolicy } from "@/lib/repository";
 
 export async function GET() {
   try {
-    const policies = getPolicies();
+    const policies = await getPolicies();
     return NextResponse.json({ data: policies, total: policies.length });
   } catch (error) {
     return NextResponse.json(
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const policy = addPolicy({
+    const policy = await addPolicy({
       ...body,
       severity: body.severity || "SOFT",
       isActive: body.isActive !== undefined ? body.isActive : true,
@@ -51,7 +51,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const policy = updatePolicy(body.id, body);
+    const policy = await updatePolicy(body.id, body);
 
     if (!policy) {
       return NextResponse.json({ error: "Policy not found" }, { status: 404 });
@@ -72,7 +72,7 @@ export async function DELETE(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: "Missing required query param: id" }, { status: 400 });
     }
-    const deleted = deletePolicy(id);
+    const deleted = await deletePolicy(id);
     if (!deleted) {
       return NextResponse.json({ error: "Policy not found" }, { status: 404 });
     }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCardById, deleteCard } from "@/lib/store";
+import { getCardById, deleteCard } from "@/lib/repository";
 import {
   getCardService,
   getCardControls,
@@ -12,14 +12,14 @@ export async function GET(
 ) {
   try {
     const { cardId } = await params;
-    const card = getCardById(cardId);
+    const card = await getCardById(cardId);
 
     if (!card) {
       return NextResponse.json({ error: "Card not found" }, { status: 404 });
     }
 
     // Include controls in the response
-    const controls = getCardControls(cardId);
+    const controls = await getCardControls(cardId);
 
     return NextResponse.json({ data: { ...card, controls } });
   } catch (error) {
@@ -37,7 +37,7 @@ export async function PUT(
   try {
     const { cardId } = await params;
     const body = await request.json();
-    const service = getCardService();
+    const service = await getCardService();
 
     // Handle specific action types via the integration service
     if (body.action === "freeze") {
@@ -81,7 +81,7 @@ export async function PUT(
         return NextResponse.json({ error: result.message }, { status: 400 });
       }
       // Return the card with controls
-      const updatedControls = getCardControls(cardId);
+      const updatedControls = await getCardControls(cardId);
       return NextResponse.json({
         data: { ...result.card, controls: updatedControls },
         message: result.message,
@@ -97,7 +97,7 @@ export async function PUT(
       }
       // Direct store update for other fields
       const { updateCard } = await import("@/lib/store");
-      const card = updateCard(cardId, updateFields);
+      const card = await updateCard(cardId, updateFields);
       if (!card) {
         return NextResponse.json({ error: "Card not found" }, { status: 404 });
       }
@@ -119,7 +119,7 @@ export async function DELETE(
 ) {
   try {
     const { cardId } = await params;
-    const deleted = deleteCard(cardId);
+    const deleted = await deleteCard(cardId);
 
     if (!deleted) {
       return NextResponse.json({ error: "Card not found" }, { status: 404 });

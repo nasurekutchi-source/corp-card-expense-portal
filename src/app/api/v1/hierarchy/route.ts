@@ -9,11 +9,11 @@ import {
   updateDivision,
   updateDepartment,
   updateCostCenter,
-} from "@/lib/store";
+} from "@/lib/repository";
 
 export async function GET() {
   try {
-    const hierarchy = getHierarchy();
+    const hierarchy = await getHierarchy();
     return NextResponse.json({ data: hierarchy });
   } catch (error) {
     return NextResponse.json(
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const node = addHierarchyNode(body);
+    const node = await addHierarchyNode(body);
     return NextResponse.json({ data: node }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
@@ -74,25 +74,25 @@ export async function PUT(request: NextRequest) {
     let updated = null;
     switch (body.type) {
       case "bank":
-        updated = updateBankInstitution(body.id, body.record);
+        updated = await updateBankInstitution(body.id, body.record);
         break;
       case "program":
-        updated = updateProgram(body.id, body.record);
+        updated = await updateProgram(body.id, body.record);
         break;
       case "enterprise":
-        updated = updateEnterprise(body.id, body.record);
+        updated = await updateEnterprise(body.id, body.record);
         break;
       case "company":
-        updated = updateCompany(body.id, body.record);
+        updated = await updateCompany(body.id, body.record);
         break;
       case "division":
-        updated = updateDivision(body.id, body.record);
+        updated = await updateDivision(body.id, body.record);
         break;
       case "department":
-        updated = updateDepartment(body.id, body.record);
+        updated = await updateDepartment(body.id, body.record);
         break;
       case "costCenter":
-        updated = updateCostCenter(body.id, body.record);
+        updated = await updateCostCenter(body.id, body.record);
         break;
     }
 

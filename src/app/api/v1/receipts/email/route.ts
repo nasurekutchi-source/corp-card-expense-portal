@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { addReceipt, addExpense, getReceipts } from "@/lib/store";
+import { addReceipt, addExpense, getReceipts } from "@/lib/repository";
 
 // Simulates receiving a forwarded receipt email
 // In production: Kafka consumer or webhook from bank's email management system
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
   for (const attachment of attachments) {
     // Create receipt record
-    const receipt = addReceipt({
+    const receipt = await addReceipt({
       fileName: attachment.fileName || "email-receipt.jpg",
       fileSize: attachment.base64Data
         ? Math.round(attachment.base64Data.length * 0.75)
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
     // Auto-create draft expense from OCR data
     const ocrData = receipt.ocrData as Record<string, any>;
-    const expense = addExpense({
+    const expense = await addExpense({
       amount: ocrData.amount || 0,
       originalCurrency: "INR",
       category: ocrData.category || "Miscellaneous",
@@ -118,7 +118,7 @@ function resolveEmployeeFromEmail(email: string): string {
 
 // GET: List email-sourced receipts
 export async function GET() {
-  const emailReceipts = getReceipts().filter(
+  const emailReceipts = (await getReceipts()).filter(
     (r) => r.source === "EMAIL"
   );
   return NextResponse.json(emailReceipts);

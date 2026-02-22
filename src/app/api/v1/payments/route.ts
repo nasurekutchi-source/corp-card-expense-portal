@@ -4,7 +4,7 @@ import {
   getPaymentApportionments,
   addPaymentCycle,
   updatePaymentCycle,
-} from "@/lib/store";
+} from "@/lib/repository";
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,9 +22,9 @@ export async function GET(request: NextRequest) {
       status: searchParams.get("status") || undefined,
     };
 
-    const paymentCycles = getPaymentCycles(cycleFilters);
+    const paymentCycles = await getPaymentCycles(cycleFilters);
     const paymentApportionments = searchParams.get("cycleId")
-      ? getPaymentApportionments(apportionmentFilters)
+      ? await getPaymentApportionments(apportionmentFilters)
       : [];
 
     return NextResponse.json({
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     // If body contains an id and updates, treat as updatePaymentCycle
     if (body.id && body.updates) {
-      const updated = updatePaymentCycle(body.id, body.updates);
+      const updated = await updatePaymentCycle(body.id, body.updates);
       if (!updated) {
         return NextResponse.json(
           { error: "Payment cycle not found" },
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const cycle = addPaymentCycle(body);
+    const cycle = await addPaymentCycle(body);
     return NextResponse.json({ data: cycle, message: "Payment cycle created" }, { status: 201 });
   } catch (error) {
     return NextResponse.json(

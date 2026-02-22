@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { addReceipt, getReceipt, getReceipts, deleteReceipt } from "@/lib/store";
+import { addReceipt, getReceipt, getReceipts, deleteReceipt } from "@/lib/repository";
 
 // =============================================================================
 // GET /api/v1/receipts?id=xxx or ?expenseId=xxx
@@ -8,14 +8,14 @@ import { addReceipt, getReceipt, getReceipts, deleteReceipt } from "@/lib/store"
 export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   if (id) {
-    const receipt = getReceipt(id);
+    const receipt = await getReceipt(id);
     if (!receipt) {
       return NextResponse.json({ error: "Receipt not found" }, { status: 404 });
     }
     return NextResponse.json(receipt);
   }
   const expenseId = req.nextUrl.searchParams.get("expenseId");
-  return NextResponse.json(getReceipts(expenseId || undefined));
+  return NextResponse.json(await getReceipts(expenseId || undefined));
 }
 
 // =============================================================================
@@ -435,7 +435,7 @@ export async function POST(req: NextRequest) {
       ocrData._engine = ocrEngine;
     }
 
-    const receipt = addReceipt({
+    const receipt = await addReceipt({
       expenseId: expenseId || undefined,
       fileName: file.name,
       fileSize: file.size,
@@ -470,7 +470,7 @@ export async function DELETE(req: NextRequest) {
       { status: 400 }
     );
   }
-  const deleted = deleteReceipt(id);
+  const deleted = await deleteReceipt(id);
   if (!deleted) {
     return NextResponse.json(
       { error: "Receipt not found" },

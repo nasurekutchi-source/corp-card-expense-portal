@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getApprovals, updateApproval } from "@/lib/store";
+import { getApprovals, updateApproval } from "@/lib/repository";
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
       search: searchParams.get("search") || undefined,
     };
 
-    const approvals = getApprovals(filters);
+    const approvals = await getApprovals(filters);
     return NextResponse.json({ data: approvals, total: approvals.length });
   } catch (error) {
     return NextResponse.json(
@@ -38,11 +38,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const approval = updateApproval(body.id, {
+    const approval = await updateApproval(body.id, {
       status: body.status,
-      comment: body.comment,
-      reviewedBy: body.reviewedBy,
-    });
+    }, body.comment);
 
     if (!approval) {
       return NextResponse.json({ error: "Approval not found" }, { status: 404 });

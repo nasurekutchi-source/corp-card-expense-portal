@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getExpenseReports, addExpenseReport } from "@/lib/store";
+import { getExpenseReports, addExpenseReport } from "@/lib/repository";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       search: searchParams.get("search") || undefined,
     };
 
-    const reports = getExpenseReports(filters);
+    const reports = await getExpenseReports(filters);
     return NextResponse.json({ data: reports, total: reports.length });
   } catch (error) {
     return NextResponse.json(
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const report = addExpenseReport({
+    const report = await addExpenseReport({
       ...body,
       reportNumber: `EXP-2026-${String(Date.now()).slice(-4)}`,
       status: body.status || "DRAFT",

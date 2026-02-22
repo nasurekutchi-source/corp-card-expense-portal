@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { lookupGstin, addGstinRecord, getGstinCache, refreshGstinCache } from "@/lib/store";
+import { lookupGstin, addGstinRecord, getGstinCache, refreshGstinCache } from "@/lib/repository";
 
 export async function GET(req: NextRequest) {
   const gstin = req.nextUrl.searchParams.get("gstin");
@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   // Refresh cache (simulate CIGNET sync)
   if (action === "refresh") {
-    const result = refreshGstinCache();
+    const result = await refreshGstinCache();
     return NextResponse.json({ message: `Refreshed ${result.refreshed} of ${result.total} records`, ...result });
   }
 
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Check local cache first
-  const cached = lookupGstin(gstin);
+  const cached = await lookupGstin(gstin);
   if (cached) {
     return NextResponse.json({
       valid: true,
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
   const stateCode = gstin.substring(0, 2);
   const pan = gstin.substring(2, 12);
 
-  const newRecord = addGstinRecord({
+  const newRecord = await addGstinRecord({
     gstin,
     legalName: `Entity with PAN ${pan}`,
     tradeName: `Trade Name (${pan})`,

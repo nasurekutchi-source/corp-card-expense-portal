@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDetectedSubscriptions } from "@/lib/store";
+import { getDetectedSubscriptions } from "@/lib/repository";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       search: searchParams.get("search") || undefined,
     };
 
-    const subscriptions = getDetectedSubscriptions(filters);
+    const subscriptions = await getDetectedSubscriptions(filters);
     return NextResponse.json({ data: subscriptions, total: subscriptions.length });
   } catch (error) {
     return NextResponse.json(

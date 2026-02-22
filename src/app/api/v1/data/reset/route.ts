@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { resetStore } from "@/lib/store";
+import { resetStore } from "@/lib/repository";
 
 export async function POST() {
   try {
-    resetStore();
+    await resetStore();
     return NextResponse.json({
       success: true,
       message: "Data reset to demo defaults",

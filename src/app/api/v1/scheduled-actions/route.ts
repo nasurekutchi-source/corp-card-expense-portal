@@ -4,7 +4,7 @@ import {
   addScheduledCardAction,
   updateScheduledCardAction,
   deleteScheduledCardAction,
-} from "@/lib/store";
+} from "@/lib/repository";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       actionType: searchParams.get("actionType") || undefined,
     };
 
-    const actions = getScheduledCardActions(filters);
+    const actions = await getScheduledCardActions(filters);
     return NextResponse.json({ data: actions, total: actions.length });
   } catch (error) {
     return NextResponse.json(
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const action = addScheduledCardAction(body);
+    const action = await addScheduledCardAction(body);
     return NextResponse.json({ data: action, message: "Scheduled action created" }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
@@ -73,7 +73,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const { id, ...updates } = body;
-    const updated = updateScheduledCardAction(id, updates);
+    const updated = await updateScheduledCardAction(id, updates);
 
     if (!updated) {
       return NextResponse.json(
@@ -103,7 +103,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const deleted = deleteScheduledCardAction(id);
+    const deleted = await deleteScheduledCardAction(id);
 
     if (!deleted) {
       return NextResponse.json(

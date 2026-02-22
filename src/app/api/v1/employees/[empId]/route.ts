@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getEmployeeById, updateEmployee, deleteEmployee } from "@/lib/store";
+import { getEmployeeById, updateEmployee, deleteEmployee } from "@/lib/repository";
 
 export async function GET(
   request: NextRequest,
@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { empId } = await params;
-    const employee = getEmployeeById(empId);
+    const employee = await getEmployeeById(empId);
 
     if (!employee) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 });
@@ -29,7 +29,7 @@ export async function PUT(
   try {
     const { empId } = await params;
     const body = await request.json();
-    const employee = updateEmployee(empId, body);
+    const employee = await updateEmployee(empId, body);
 
     if (!employee) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 });
@@ -50,7 +50,7 @@ export async function DELETE(
 ) {
   try {
     const { empId } = await params;
-    const deleted = deleteEmployee(empId);
+    const deleted = await deleteEmployee(empId);
 
     if (!deleted) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 });

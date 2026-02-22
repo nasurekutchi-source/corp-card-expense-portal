@@ -7,7 +7,7 @@ import {
   updatePaymentProfile,
   deletePaymentProfile,
   verifyPaymentProfile,
-} from "@/lib/store";
+} from "@/lib/repository";
 
 export async function GET(req: NextRequest) {
   const employeeId = req.nextUrl.searchParams.get("employeeId");
@@ -15,20 +15,20 @@ export async function GET(req: NextRequest) {
   const primary = req.nextUrl.searchParams.get("primary");
 
   if (id) {
-    const profile = getPaymentProfile(id);
+    const profile = await getPaymentProfile(id);
     return profile
       ? NextResponse.json(profile)
       : NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   if (primary && employeeId) {
-    const profile = getPrimaryPaymentProfile(employeeId);
+    const profile = await getPrimaryPaymentProfile(employeeId);
     return profile
       ? NextResponse.json(profile)
       : NextResponse.json({ error: "No primary payment profile" }, { status: 404 });
   }
 
-  return NextResponse.json(getPaymentProfiles(employeeId || undefined));
+  return NextResponse.json(await getPaymentProfiles(employeeId || undefined));
 }
 
 export async function POST(req: NextRequest) {
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     const action = body.action;
     if (action === "verify") {
-      const profile = verifyPaymentProfile(body.id);
+      const profile = await verifyPaymentProfile(body.id);
       return profile
         ? NextResponse.json(profile)
         : NextResponse.json({ error: "Profile not found" }, { status: 404 });
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "employeeId is required" }, { status: 400 });
     }
 
-    const profile = addPaymentProfile(body);
+    const profile = await addPaymentProfile(body);
     return NextResponse.json(profile, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: "Failed to create payment profile" }, { status: 500 });
@@ -60,7 +60,7 @@ export async function PUT(req: NextRequest) {
     if (!body.id) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
-    const profile = updatePaymentProfile(body.id, body);
+    const profile = await updatePaymentProfile(body.id, body);
     return profile
       ? NextResponse.json(profile)
       : NextResponse.json({ error: "Profile not found" }, { status: 404 });
@@ -74,7 +74,7 @@ export async function DELETE(req: NextRequest) {
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
-  const deleted = deletePaymentProfile(id);
+  const deleted = await deletePaymentProfile(id);
   return deleted
     ? NextResponse.json({ success: true })
     : NextResponse.json({ error: "Profile not found" }, { status: 404 });

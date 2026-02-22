@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getStats, getAnalytics } from "@/lib/store";
+import { getStats, getAnalytics } from "@/lib/repository";
 
 export async function GET() {
   try {
-    const stats = getStats();
-    const analytics = getAnalytics();
+    const stats = await getStats();
+    const analytics = await getAnalytics();
 
     return NextResponse.json({
       data: {

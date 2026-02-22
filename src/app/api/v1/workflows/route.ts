@@ -5,7 +5,7 @@ import {
   addWorkflowRequest,
   approveWorkflowStep,
   rejectWorkflowStep,
-} from "@/lib/store";
+} from "@/lib/repository";
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       search: searchParams.get("search") || undefined,
     };
 
-    const workflows = getWorkflowRequests(filters);
+    const workflows = await getWorkflowRequests(filters);
     return NextResponse.json({ data: workflows, total: workflows.length });
   } catch (error) {
     return NextResponse.json(
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const workflow = addWorkflowRequest(body);
+    const workflow = await addWorkflowRequest(body);
     return NextResponse.json({ data: workflow, message: "Workflow request created" }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
@@ -60,7 +60,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Verify the workflow exists
-    const existing = getWorkflowRequest(body.id);
+    const existing = await getWorkflowRequest(body.id);
     if (!existing) {
       return NextResponse.json(
         { error: "Workflow request not found" },
@@ -70,9 +70,9 @@ export async function PUT(request: NextRequest) {
 
     let result;
     if (body.action === "approve") {
-      result = approveWorkflowStep(body.id, body.approverName, body.comment);
+      result = await approveWorkflowStep(body.id, body.approverName, body.comment);
     } else if (body.action === "reject") {
-      result = rejectWorkflowStep(body.id, body.approverName, body.comment);
+      result = await rejectWorkflowStep(body.id, body.approverName, body.comment);
     } else {
       return NextResponse.json(
         { error: "Invalid action. Must be 'approve' or 'reject'" },

@@ -5,7 +5,7 @@ import {
   processReimbursement,
   completeReimbursement,
   failReimbursement,
-} from "@/lib/store";
+} from "@/lib/repository";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const employeeId = searchParams.get("employeeId") || undefined;
     const format = searchParams.get("format");
 
-    const reimbursements = getReimbursements({ status, employeeId });
+    const reimbursements = await getReimbursements({ status, employeeId });
 
     // NEFT payment file generation
     if (format === "neft") {
@@ -63,33 +63,33 @@ export async function POST(request: NextRequest) {
     const { action, id, ids, paymentRef, reason } = body;
 
     if (action === "initiate" && id) {
-      const result = initiateReimbursement(id);
+      const result = await initiateReimbursement(id);
       if (!result) return NextResponse.json({ error: "Not found" }, { status: 404 });
       return NextResponse.json({ data: result, message: "Reimbursement initiated" });
     }
 
     if (action === "process" && id) {
       const ref = paymentRef || `NEFT${Date.now()}`;
-      const result = processReimbursement(id, ref);
+      const result = await processReimbursement(id, ref);
       if (!result) return NextResponse.json({ error: "Not found" }, { status: 404 });
       return NextResponse.json({ data: result, message: "Reimbursement processing" });
     }
 
     if (action === "complete" && id) {
-      const result = completeReimbursement(id);
+      const result = await completeReimbursement(id);
       if (!result) return NextResponse.json({ error: "Not found" }, { status: 404 });
       return NextResponse.json({ data: result, message: "Reimbursement completed" });
     }
 
     if (action === "fail" && id) {
-      const result = failReimbursement(id, reason || "Payment failed");
+      const result = await failReimbursement(id, reason || "Payment failed");
       if (!result) return NextResponse.json({ error: "Not found" }, { status: 404 });
       return NextResponse.json({ data: result, message: "Reimbursement failed" });
     }
 
     // Bulk initiate
     if (action === "bulk-initiate" && Array.isArray(ids)) {
-      const results = ids.map((rid: string) => initiateReimbursement(rid)).filter(Boolean);
+      const results = (await Promise.all(ids.map((rid: string) => initiateReimbursement(rid)))).filter(Boolean);
       return NextResponse.json({ data: { initiated: results.length }, message: `${results.length} reimbursements initiated` });
     }
 

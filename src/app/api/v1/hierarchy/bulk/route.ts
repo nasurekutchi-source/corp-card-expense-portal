@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { bulkImportHierarchy } from "@/lib/store";
+import { bulkImportHierarchy } from "@/lib/repository";
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = bulkImportHierarchy(body.records);
+    const result = await bulkImportHierarchy(body.records);
     return NextResponse.json(
       { imported: result.imported, errors: result.errors, total: result.total },
       { status: 201 }

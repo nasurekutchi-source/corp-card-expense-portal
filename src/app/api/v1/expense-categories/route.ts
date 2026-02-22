@@ -7,11 +7,11 @@ import {
   addSubcategory,
   removeSubcategory,
   reorderExpenseCategories,
-} from "@/lib/store";
+} from "@/lib/repository";
 
 export async function GET(req: NextRequest) {
   const activeOnly = req.nextUrl.searchParams.get("activeOnly") === "true";
-  return NextResponse.json(getExpenseCategories(activeOnly));
+  return NextResponse.json(await getExpenseCategories(activeOnly));
 }
 
 export async function POST(req: NextRequest) {
@@ -19,33 +19,33 @@ export async function POST(req: NextRequest) {
 
   // Reorder action
   if (body.action === "reorder" && Array.isArray(body.orderedIds)) {
-    reorderExpenseCategories(body.orderedIds);
+    await reorderExpenseCategories(body.orderedIds);
     return NextResponse.json({ success: true });
   }
 
   // Add subcategory
   if (body.action === "addSubcategory" && body.categoryId && body.subcategory) {
-    const result = addSubcategory(body.categoryId, body.subcategory);
+    const result = await addSubcategory(body.categoryId, body.subcategory);
     if (!result) return NextResponse.json({ error: "Category not found" }, { status: 404 });
     return NextResponse.json(result);
   }
 
   // Remove subcategory
   if (body.action === "removeSubcategory" && body.categoryId && body.subCode) {
-    const result = removeSubcategory(body.categoryId, body.subCode);
+    const result = await removeSubcategory(body.categoryId, body.subCode);
     if (!result) return NextResponse.json({ error: "Category not found" }, { status: 404 });
     return NextResponse.json(result);
   }
 
   // Add new category
-  const cat = addExpenseCategory(body);
+  const cat = await addExpenseCategory(body);
   return NextResponse.json(cat, { status: 201 });
 }
 
 export async function PUT(req: NextRequest) {
   const body = await req.json();
   if (!body.id) return NextResponse.json({ error: "id required" }, { status: 400 });
-  const updated = updateExpenseCategory(body.id, body);
+  const updated = await updateExpenseCategory(body.id, body);
   if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(updated);
 }
@@ -53,7 +53,7 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
-  const ok = deleteExpenseCategory(id);
+  const ok = await deleteExpenseCategory(id);
   if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ success: true });
 }

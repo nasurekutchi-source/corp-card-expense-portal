@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTransactions, addTransaction } from "@/lib/store";
+import { getTransactions, addTransaction } from "@/lib/repository";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       search: searchParams.get("search") || undefined,
     };
 
-    const transactions = getTransactions(filters);
+    const transactions = await getTransactions(filters);
     return NextResponse.json({ data: transactions, total: transactions.length });
   } catch (error) {
     return NextResponse.json(
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const transaction = addTransaction(body);
+    const transaction = await addTransaction(body);
     return NextResponse.json({ data: transaction }, { status: 201 });
   } catch (error) {
     return NextResponse.json(

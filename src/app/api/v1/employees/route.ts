@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getEmployees, addEmployee } from "@/lib/store";
+import { getEmployees, addEmployee } from "@/lib/repository";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       search: searchParams.get("search") || undefined,
     };
 
-    const employees = getEmployees(filters);
+    const employees = await getEmployees(filters);
     return NextResponse.json({ data: employees, total: employees.length });
   } catch (error) {
     return NextResponse.json(
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const employee = addEmployee(body);
+    const employee = await addEmployee(body);
     return NextResponse.json({ data: employee }, { status: 201 });
   } catch (error) {
     return NextResponse.json(

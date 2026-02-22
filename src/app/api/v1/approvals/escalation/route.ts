@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getEscalationConfig, updateEscalationConfig, checkAndEscalateApprovals } from "@/lib/store";
+import { getEscalationConfig, updateEscalationConfig, checkAndEscalateApprovals } from "@/lib/repository";
 
 export async function GET() {
-  return NextResponse.json(getEscalationConfig());
+  return NextResponse.json(await getEscalationConfig());
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
   if (body.action === "run") {
-    const result = checkAndEscalateApprovals();
+    const result = await checkAndEscalateApprovals();
     return NextResponse.json({
       message: `Checked ${result.checked} pending approvals, escalated ${result.escalated.length}`,
       ...result,
@@ -17,6 +17,6 @@ export async function POST(req: NextRequest) {
   }
 
   // Update config
-  const updated = updateEscalationConfig(body);
+  const updated = await updateEscalationConfig(body);
   return NextResponse.json(updated);
 }

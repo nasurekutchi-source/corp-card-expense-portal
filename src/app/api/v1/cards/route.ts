@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCards } from "@/lib/store";
+import { getCards } from "@/lib/repository";
 import { getCardService } from "@/lib/card-integration";
 
 export async function GET(request: NextRequest) {
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       search: searchParams.get("search") || undefined,
     };
 
-    const cards = getCards(filters);
+    const cards = await getCards(filters);
     return NextResponse.json({ data: cards, total: cards.length });
   } catch (error) {
     return NextResponse.json(
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const service = getCardService();
+    const service = await getCardService();
     const result = await service.issueCard({
       employeeId: body.employeeId,
       type: body.type || "VIRTUAL",

@@ -4,7 +4,7 @@ import {
   getExpenses,
   getExpenseReports,
   getStore,
-} from "@/lib/store";
+} from "@/lib/repository";
 
 export async function GET(req: NextRequest) {
   const type = req.nextUrl.searchParams.get("type") || "transactions";
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   switch (type) {
     case "spend-summary": {
-      const expenses = getExpenses();
+      const expenses = await getExpenses();
       const categoryMap = new Map<string, { count: number; total: number }>();
       expenses.forEach((e) => {
         const cat = e.category || "Other";
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     }
 
     case "transactions": {
-      const txns = getTransactions();
+      const txns = await getTransactions();
       csv =
         "Transaction ID,Date,Card Last 4,Employee,Merchant,MCC Category,Amount (INR),Status,Channel,City\n";
       txns.forEach((t) => {
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
     }
 
     case "budget": {
-      const store = getStore();
+      const store = await getStore();
       csv =
         "Department,Division,Budget (INR),Utilized (INR),Utilization %\n";
       store.departments.forEach((dept) => {
@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
     }
 
     case "gst": {
-      const expenses = getExpenses();
+      const expenses = await getExpenses();
       csv =
         "Expense ID,Employee,Merchant,Amount (INR),GSTIN,CGST,SGST,IGST,Total GST\n";
       expenses
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
     }
 
     case "employee-expense": {
-      const expenses = getExpenses();
+      const expenses = await getExpenses();
       const empMap = new Map<
         string,
         { name: string; count: number; total: number; categories: Set<string> }
@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
     }
 
     case "ap-export": {
-      const reports = getExpenseReports().filter(
+      const reports = (await getExpenseReports()).filter(
         (r) =>
           r.status === "APPROVED" ||
           r.status === "PROCESSING" ||

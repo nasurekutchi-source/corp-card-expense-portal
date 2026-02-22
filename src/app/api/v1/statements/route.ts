@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCardStatements, getCorporateStatements } from "@/lib/store";
+import { getCardStatements, getCorporateStatements } from "@/lib/repository";
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
     };
 
     // If type is specified, only return that type; otherwise return both
-    const cardStatements = type === "corporate" ? [] : getCardStatements(cardFilters);
-    const corporateStatements = type === "card" ? [] : getCorporateStatements(corporateFilters);
+    const cardStatements = type === "corporate" ? [] : await getCardStatements(cardFilters);
+    const corporateStatements = type === "card" ? [] : await getCorporateStatements(corporateFilters);
 
     return NextResponse.json({
       data: { cardStatements, corporateStatements },

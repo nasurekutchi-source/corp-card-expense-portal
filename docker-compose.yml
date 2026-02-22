@@ -1,4 +1,23 @@
 services:
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    container_name: corpcardpro-oracle
+    ports:
+      - "1521:1521"
+    environment:
+      - ORACLE_PASSWORD=SysP@ss2026
+      - APP_USER=corpcardpro
+      - APP_USER_PASSWORD=CorpCard2026
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+    restart: unless-stopped
+
   web:
     build: .
     ports:
@@ -12,18 +31,22 @@ services:
       - NEXTAUTH_SECRET=dev-secret-change-in-production
       - NEXTAUTH_URL=http://localhost:3300
       - NODE_ENV=development
-      # Oracle Cloud Free Tier - set these when ready
-      - ORACLE_CONNECTION_STRING=${ORACLE_CONNECTION_STRING:-}
-      - ORACLE_USER=${ORACLE_USER:-}
-      - ORACLE_PASSWORD=${ORACLE_PASSWORD:-}
+      # Oracle 23ai Free (local Docker container)
+      - ORACLE_CONNECTION_STRING=oracle:1521/FREEPDB1
+      - ORACLE_USER=corpcardpro
+      - ORACLE_PASSWORD=CorpCard2026
       # MongoDB Atlas - set when ready
       - MONGODB_URI=${MONGODB_URI:-}
       # Upstash Redis - set when ready
       - UPSTASH_REDIS_URL=${UPSTASH_REDIS_URL:-}
       # Anthropic API - Claude Vision OCR (primary OCR engine)
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    depends_on:
+      oracle:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
   node_modules:
   next_cache:
+  oracle_data:

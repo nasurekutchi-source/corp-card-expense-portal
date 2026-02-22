@@ -5,7 +5,7 @@ import {
   deleteExpenseReport,
   addApproval,
   addReimbursement,
-} from "@/lib/store";
+} from "@/lib/repository";
 
 // GET /api/v1/expense-reports/[reportId]
 export async function GET(
@@ -13,7 +13,7 @@ export async function GET(
   { params }: { params: Promise<{ reportId: string }> }
 ) {
   const { reportId } = await params;
-  const report = getExpenseReport(reportId);
+  const report = await getExpenseReport(reportId);
   if (!report) {
     return NextResponse.json(
       { error: "Expense report not found" },
@@ -31,7 +31,7 @@ export async function PATCH(
   const { reportId } = await params;
   const body = await req.json();
 
-  const existing = getExpenseReport(reportId);
+  const existing = await getExpenseReport(reportId);
   if (!existing) {
     return NextResponse.json(
       { error: "Expense report not found" },
@@ -39,7 +39,7 @@ export async function PATCH(
     );
   }
 
-  const updated = updateExpenseReport(reportId, body);
+  const updated = await updateExpenseReport(reportId, body);
   if (!updated) {
     return NextResponse.json(
       { error: "Failed to update expense report" },
@@ -49,7 +49,7 @@ export async function PATCH(
 
   // When a report is SUBMITTED, automatically create an approval record
   if (body.status === "SUBMITTED" && existing.status !== "SUBMITTED") {
-    addApproval({
+    await addApproval({
       entityType: "EXPENSE_REPORT",
       entityId: reportId,
       reportNumber: updated.reportNumber,
@@ -75,7 +75,7 @@ export async function DELETE(
 ) {
   const { reportId } = await params;
 
-  const existing = getExpenseReport(reportId);
+  const existing = await getExpenseReport(reportId);
   if (!existing) {
     return NextResponse.json(
       { error: "Expense report not found" },
@@ -91,7 +91,7 @@ export async function DELETE(
     );
   }
 
-  const deleted = deleteExpenseReport(reportId);
+  const deleted = await deleteExpenseReport(reportId);
   if (!deleted) {
     return NextResponse.json(
       { error: "Failed to delete expense report" },

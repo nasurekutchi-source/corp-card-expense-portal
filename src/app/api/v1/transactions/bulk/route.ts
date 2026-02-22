@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { bulkImportTransactions } from "@/lib/store";
+import { bulkImportTransactions } from "@/lib/repository";
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = bulkImportTransactions(body.records);
+    const result = await bulkImportTransactions(body.records);
     return NextResponse.json(
       { imported: result.imported, errors: result.errors, total: result.total },
       { status: 201 }

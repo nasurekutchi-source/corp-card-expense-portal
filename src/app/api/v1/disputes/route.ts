@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDisputes, getDispute, addDispute, updateDispute } from "@/lib/store";
+import { getDisputes, getDispute, addDispute, updateDispute } from "@/lib/repository";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       search: searchParams.get("search") || undefined,
     };
 
-    const disputes = getDisputes(filters);
+    const disputes = await getDisputes(filters);
     return NextResponse.json({ data: disputes, total: disputes.length });
   } catch (error) {
     return NextResponse.json(
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const dispute = addDispute(body);
+    const dispute = await addDispute(body);
     return NextResponse.json({ data: dispute, message: "Dispute raised" }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
@@ -61,7 +61,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Verify the dispute exists
-    const existing = getDispute(body.id);
+    const existing = await getDispute(body.id);
     if (!existing) {
       return NextResponse.json(
         { error: "Dispute not found" },
@@ -70,7 +70,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const { id, ...updates } = body;
-    const updated = updateDispute(id, updates);
+    const updated = await updateDispute(id, updates);
 
     if (!updated) {
       return NextResponse.json(

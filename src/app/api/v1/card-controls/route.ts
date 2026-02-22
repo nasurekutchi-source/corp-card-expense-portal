@@ -6,7 +6,7 @@ import {
   updateCardControlPolicy,
   deleteCardControlPolicy,
   getEffectiveCardControlPolicy,
-} from "@/lib/store";
+} from "@/lib/repository";
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,13 +17,13 @@ export async function GET(request: NextRequest) {
     // Get effective (inherited/resolved) policy for a node
     if (nodeId && effective === "true") {
       const nodeType = (searchParams.get("nodeType") || "company") as "company" | "division" | "department";
-      const result = getEffectiveCardControlPolicy(nodeId, nodeType);
+      const result = await getEffectiveCardControlPolicy(nodeId, nodeType);
       return NextResponse.json({ data: result });
     }
 
     // Get direct policy for a specific node
     if (nodeId) {
-      const policy = getCardControlPolicyByNode(nodeId);
+      const policy = await getCardControlPolicyByNode(nodeId);
       if (!policy) {
         return NextResponse.json(
           { data: null, message: "No direct policy found for this node" },
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all card control policies
-    const policies = getCardControlPolicies();
+    const policies = await getCardControlPolicies();
     return NextResponse.json({ data: policies });
   } catch (error) {
     return NextResponse.json(
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const policy = addCardControlPolicy(body);
+    const policy = await addCardControlPolicy(body);
     return NextResponse.json({ data: policy }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
@@ -84,7 +84,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updated = updateCardControlPolicy(body.id, body);
+    const updated = await updateCardControlPolicy(body.id, body);
     if (!updated) {
       return NextResponse.json(
         { error: "Card control policy not found" },
@@ -113,7 +113,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const deleted = deleteCardControlPolicy(id);
+    const deleted = await deleteCardControlPolicy(id);
     if (!deleted) {
       return NextResponse.json(
         { error: "Card control policy not found" },

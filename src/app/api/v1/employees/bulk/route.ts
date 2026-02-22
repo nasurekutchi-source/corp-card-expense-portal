@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { bulkImportEmployees } from "@/lib/store";
+import { bulkImportEmployees } from "@/lib/repository";
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = bulkImportEmployees(body.records);
+    const result = await bulkImportEmployees(body.records);
     return NextResponse.json(
       { imported: result.imported, errors: result.errors, total: result.total },
       { status: 201 }
