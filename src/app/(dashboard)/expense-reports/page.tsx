@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
-import { getExpenseReports } from "@/lib/store";
 import { formatDate, formatINRCompact } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -26,15 +25,46 @@ import {
   XCircle,
   Download,
   Send,
+  Loader2,
 } from "lucide-react";
+
+interface ExpenseReport {
+  id: string;
+  reportNumber: string;
+  title: string;
+  employeeName: string;
+  department: string;
+  status: string;
+  totalAmount: number;
+  currency: string;
+  expenseCount: number;
+  policyScore: number;
+  submittedAt?: string;
+  [key: string]: any;
+}
 
 const statusFilters = ["ALL", "DRAFT", "SUBMITTED", "IN_REVIEW", "APPROVED", "REJECTED", "PROCESSING", "PAID"];
 
 export default function ExpenseReportsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [expenseReports, setExpenseReports] = useState<ExpenseReport[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const expenseReports = getExpenseReports();
+  const fetchReports = useCallback(async () => {
+    try {
+      const res = await fetch("/api/v1/expense-reports");
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+      setExpenseReports(Array.isArray(data) ? data : data.data || []);
+    } catch {
+      toast.error("Failed to load expense reports");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchReports(); }, [fetchReports]);
 
   const filteredReports = expenseReports.filter((r) => {
     const matchesSearch =

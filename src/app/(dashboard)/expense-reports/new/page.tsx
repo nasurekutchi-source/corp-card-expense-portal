@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
-import { getExpenses, getCostCenters } from "@/lib/store";
+import { getCostCenters } from "@/lib/store";
 import type { Expense, CostCenter } from "@/lib/store";
 import { formatDate, cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -57,9 +57,16 @@ export default function NewExpenseReportPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [createdReportNumber, setCreatedReportNumber] = useState("");
+  const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
 
-  const allExpenses = getExpenses();
-  const unreported = useMemo(() => allExpenses.slice(0, 15), [allExpenses]);
+  useEffect(() => {
+    fetch("/api/v1/expenses")
+      .then((r) => r.json())
+      .then((data) => setAllExpenses(Array.isArray(data) ? data : data.data || []))
+      .catch(() => {});
+  }, []);
+
+  const unreported = useMemo(() => allExpenses, [allExpenses]);
   const categories = useMemo(() => {
     const set = new Set(unreported.map((e: Expense) => e.category));
     return Array.from(set).sort();

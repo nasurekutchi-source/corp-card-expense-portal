@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PageHeader } from "@/components/shared/page-header";
-import { getExpenses } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -20,24 +19,55 @@ import {
   ChevronRight,
   Tag,
   Building2,
-  FileText,
   Camera,
   IndianRupee,
   AlertTriangle,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
+
+interface Expense {
+  id: string;
+  merchantName: string;
+  amount: number;
+  category: string;
+  date: string;
+  type: string;
+  policyStatus: string;
+  employeeName: string;
+  hasReceipt: boolean;
+  gstDetails?: { cgst: number; sgst: number; igst: number; gstin?: string };
+  [key: string]: any;
+}
 
 export default function ExpensesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const expenses = getExpenses();
+  const fetchExpenses = useCallback(async () => {
+    try {
+      const res = await fetch("/api/v1/expenses");
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+      setExpenses(Array.isArray(data) ? data : data.data || []);
+    } catch {
+      toast.error("Failed to load expenses");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchExpenses();
+  }, [fetchExpenses]);
 
   const filteredExpenses = expenses.filter((exp) => {
     const matchesSearch =
-      exp.merchantName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      exp.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      exp.employeeName.toLowerCase().includes(searchQuery.toLowerCase());
+      (exp.merchantName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (exp.category || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (exp.employeeName || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = typeFilter === "ALL" || exp.type === typeFilter;
     return matchesSearch && matchesType;
   });
@@ -143,7 +173,7 @@ export default function ExpensesPage() {
           />
         </div>
         <div className="flex gap-1 flex-wrap">
-          {["ALL", "CARD", "CASH", "MILEAGE"].map((type) => (
+          {["ALL", "CARD", "CASH", "MILEAGE", "PERSONAL CARD"].map((type) => (
             <Button
               key={type}
               variant={typeFilter === type ? "default" : "outline"}
@@ -159,6 +189,20 @@ export default function ExpensesPage() {
       {/* Expense List */}
       <Card>
         <CardContent className="p-0">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredExpenses.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <Receipt className="w-12 h-12 text-muted-foreground/30 mb-4" />
+              <p className="text-muted-foreground font-medium">No expenses yet</p>
+              <p className="text-sm text-muted-foreground/70 mt-1">Create your first expense to get started</p>
+              <Button asChild className="mt-4" size="sm">
+                <Link href="/expenses/new"><Plus className="w-4 h-4 mr-1" /> New Expense</Link>
+              </Button>
+            </div>
+          ) : (
           <div className="divide-y">
             {filteredExpenses.slice(0, 25).map((expense) => (
               <Link
@@ -214,7 +258,7 @@ export default function ExpensesPage() {
                 {/* Amount */}
                 <div className="text-right shrink-0">
                   <CurrencyDisplay amount={expense.amount} className="text-sm font-medium" />
-                  {expense.gstDetails && (
+                  {expense.gstDetails && (expense.gstDetails.cgst + expense.gstDetails.sgst) > 0 && (
                     <p className="text-[9px] text-muted-foreground">
                       GST: {((expense.gstDetails.cgst + expense.gstDetails.sgst) / expense.amount * 100).toFixed(0)}%
                     </p>
@@ -225,6 +269,7 @@ export default function ExpensesPage() {
               </Link>
             ))}
           </div>
+          )}
         </CardContent>
       </Card>
     </div>
