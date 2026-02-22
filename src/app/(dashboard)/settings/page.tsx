@@ -139,7 +139,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-1">
               {[
-                { key: "cardPortal", label: "Card Portal", desc: "Corporate card issuance, controls, and transaction management", icon: CreditCard, required: true },
+                { key: "cardPortal", label: "Card Portal", desc: "Corporate card issuance, controls, and transaction management", icon: CreditCard },
                 { key: "expenseManagement", label: "Expense Management", desc: "Expense creation, reports, and approval workflows", icon: Receipt },
                 { key: "ocrReceipts", label: "Receipt OCR", desc: "Automatic receipt scanning and data extraction", icon: FileText },
                 { key: "aiAssistant", label: "AI Expense Assistant", desc: "Intelligent chatbot for expense submission and queries", icon: Bot },
@@ -158,20 +158,25 @@ export default function SettingsPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium">{mod.label}</p>
-                      {mod.required && <Badge variant="outline" className="text-[9px]">Required</Badge>}
                     </div>
                     <p className="text-xs text-muted-foreground">{mod.desc}</p>
                   </div>
                   <button
                     onClick={() => {
-                      if (!mod.required) {
-                        const newVal = !modules[mod.key as keyof typeof modules];
-                        updateConfig({ [mod.key]: newVal });
-                        toast.success(`${mod.label} ${newVal ? "enabled" : "disabled"}`);
+                      const k = mod.key as keyof typeof modules;
+                      const newVal = !modules[k];
+                      // Prevent turning off both core modules
+                      if (!newVal && (k === "cardPortal" || k === "expenseManagement")) {
+                        const other = k === "cardPortal" ? modules.expenseManagement : modules.cardPortal;
+                        if (!other) {
+                          toast.error("At least one core module (Card Portal or Expense Management) must be enabled");
+                          return;
+                        }
                       }
+                      updateConfig({ [k]: newVal });
+                      toast.success(`${mod.label} ${newVal ? "enabled" : "disabled"}`);
                     }}
                     className="shrink-0"
-                    disabled={mod.required}
                   >
                     {modules[mod.key as keyof typeof modules] ? (
                       <ToggleRight className="w-8 h-8 text-emerald-500" />
