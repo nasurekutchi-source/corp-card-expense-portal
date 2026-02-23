@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 // =============================================================================
 // OCR Strategy:
 //   1. Claude Vision API (primary) — reads receipts like a human, 95%+ accuracy
-//   2. Tesseract.js with sharp preprocessing (fallback) — free, offline
+//   2. PaddleOCR via ONNX Runtime (fallback) — free, offline, ~4.5% CER
 // =============================================================================
 
 const RECEIPT_EXTRACTION_PROMPT = `You are an expert receipt/invoice data extractor for an Indian corporate expense management system.
@@ -120,7 +120,7 @@ async function runClaudeVisionOcr(
 }
 
 // -----------------------------------------------------------------------------
-// Tesseract.js OCR with sharp preprocessing — free fallback
+// PaddleOCR via ONNX Runtime — high-accuracy free fallback
 // -----------------------------------------------------------------------------
 
 async function preprocessImage(imageBuffer: Buffer): Promise<Buffer> {
@@ -131,48 +131,85 @@ async function preprocessImage(imageBuffer: Buffer): Promise<Buffer> {
       .normalize() // Auto-level contrast
       .sharpen({ sigma: 1.5 }) // Sharpen text edges
       .resize({ width: 2000, withoutEnlargement: true }) // Upscale small images
-      .png() // Consistent format for Tesseract
+      .png() // Consistent format for OCR
       .toBuffer();
   } catch {
     return imageBuffer; // Return original if preprocessing fails
   }
 }
 
-async function runTesseractOcr(imageBuffer: Buffer): Promise<{
+// Singleton: avoid reloading 50-100MB models on every request
+let paddleService: any = null;
+
+async function getPaddleService() {
+  if (paddleService) return paddleService;
+  const { PaddleOcrService } = await import("ppu-paddle-ocr");
+  paddleService = new PaddleOcrService({
+    detection: { autoDeskew: true },
+    session: {
+      executionProviders: ["cpu"],
+      graphOptimizationLevel: "all",
+      enableCpuMemArena: true,
+      enableMemPattern: true,
+      intraOpNumThreads: 2,
+    },
+  });
+  await paddleService.initialize();
+  return paddleService;
+}
+
+async function runPaddleOcr(imageBuffer: Buffer): Promise<{
   rawText: string;
   fields: Record<string, any>;
   confidence: Record<string, number>;
 }> {
-  // Preprocess image for better OCR accuracy
   const processed = await preprocessImage(imageBuffer);
+  const service = await getPaddleService();
+  const result = await service.recognize(processed);
 
-  const Tesseract = await import("tesseract.js");
-  const worker = await Tesseract.createWorker("eng", undefined, {
-    cachePath: "/tmp/tesseract-cache",
-  });
-  try {
-    const { data } = await worker.recognize(processed);
-    const rawText = data.text;
-    const overallConfidence = data.confidence; // 0-100
+  let rawText = "";
+  let totalConfidence = 0;
+  let lineCount = 0;
 
-    const fields = parseReceiptText(rawText);
-    const conf = (overallConfidence || 0) / 100;
-    const confidence: Record<string, number> = {
-      overall: conf,
-      merchantName: fields.merchantName ? conf : 0,
-      amount: fields.amount ? Math.min(conf + 0.05, 1) : 0,
-      date: fields.date ? conf : 0,
-      gstin: fields.gstin ? Math.min(conf + 0.1, 1) : 0,
-    };
-
-    return { rawText: `[Tesseract]\n${rawText}`, fields, confidence };
-  } finally {
-    await worker.terminate();
+  if (result && Array.isArray(result)) {
+    for (const item of result) {
+      if (item.text) {
+        rawText += item.text + "\n";
+        if (typeof item.score === "number") {
+          totalConfidence += item.score;
+          lineCount++;
+        }
+      }
+    }
+  } else if (result && typeof result === "object") {
+    if (Array.isArray(result.lines)) {
+      for (const line of result.lines) {
+        if (line.text) rawText += line.text + "\n";
+        if (typeof line.score === "number") {
+          totalConfidence += line.score;
+          lineCount++;
+        }
+      }
+    } else if (result.text) {
+      rawText = typeof result.text === "string" ? result.text : JSON.stringify(result.text);
+    }
   }
+
+  const avgConfidence = lineCount > 0 ? totalConfidence / lineCount : 0.5;
+  const fields = parseReceiptText(rawText);
+  const confidence: Record<string, number> = {
+    overall: avgConfidence,
+    merchantName: fields.merchantName ? avgConfidence : 0,
+    amount: fields.amount ? Math.min(avgConfidence + 0.05, 1) : 0,
+    date: fields.date ? avgConfidence : 0,
+    gstin: fields.gstin ? Math.min(avgConfidence + 0.1, 1) : 0,
+  };
+
+  return { rawText: `[PaddleOCR]\n${rawText}`, fields, confidence };
 }
 
 // =============================================================================
-// Parse receipt text into structured fields (for Tesseract fallback)
+// Parse receipt text into structured fields (for PaddleOCR fallback)
 // =============================================================================
 
 function parseReceiptText(text: string): Record<string, any> {
@@ -357,7 +394,7 @@ function parseReceiptText(text: string): Record<string, any> {
 }
 
 // =============================================================================
-// POST /api/v1/receipts — upload + OCR (Claude Vision → Tesseract fallback)
+// POST /api/v1/receipts — upload + OCR (Claude Vision → PaddleOCR fallback)
 // =============================================================================
 
 export async function POST(req: NextRequest) {
@@ -414,19 +451,19 @@ export async function POST(req: NextRequest) {
         ocrEngine = "claude-vision";
       }
 
-      // Strategy 2: Tesseract.js fallback (if no API key or Claude failed)
+      // Strategy 2: PaddleOCR fallback (if no API key or Claude failed)
       if (ocrStatus !== "COMPLETED") {
         try {
-          const tessResult = await runTesseractOcr(buffer);
-          if (tessResult.rawText && tessResult.rawText.trim().length > 10) {
-            ocrData = tessResult.fields;
-            ocrData._rawText = tessResult.rawText;
-            ocrConfidence = tessResult.confidence;
+          const paddleResult = await runPaddleOcr(buffer);
+          if (paddleResult.rawText && paddleResult.rawText.trim().length > 10) {
+            ocrData = paddleResult.fields;
+            ocrData._rawText = paddleResult.rawText;
+            ocrConfidence = paddleResult.confidence;
             ocrStatus = "COMPLETED";
-            ocrEngine = "tesseract";
+            ocrEngine = "paddleocr";
           }
-        } catch (tessErr) {
-          console.error("Tesseract OCR error:", tessErr);
+        } catch (paddleErr) {
+          console.error("PaddleOCR error:", paddleErr);
         }
       }
     }

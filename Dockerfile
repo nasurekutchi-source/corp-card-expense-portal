@@ -1,8 +1,11 @@
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
 
-RUN apk add --no-cache libc6-compat fontconfig font-noto
+# System deps: libgomp1 (onnxruntime-node), fontconfig + fonts (PDF/receipt rendering), ca-certs (HTTPS model downloads)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 fontconfig fonts-noto ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies at build time (cached in Docker layer)
 COPY package.json package-lock.json* ./
