@@ -28,6 +28,7 @@ services:
       - next_cache:/app/.next
     environment:
       - WATCHPACK_POLLING=true
+      - NODE_OPTIONS=--max-old-space-size=2048
       - NEXTAUTH_SECRET=dev-secret-change-in-production
       - NEXTAUTH_URL=http://localhost:3300
       - NODE_ENV=development
