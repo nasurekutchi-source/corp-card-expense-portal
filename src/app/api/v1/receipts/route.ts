@@ -165,37 +165,21 @@ async function runPaddleOcr(imageBuffer: Buffer): Promise<{
 }> {
   const processed = await preprocessImage(imageBuffer);
   const service = await getPaddleService();
-  const result = await service.recognize(processed);
 
-  let rawText = "";
-  let totalConfidence = 0;
-  let lineCount = 0;
+  // Convert Buffer to ArrayBuffer (ppu-paddle-ocr expects ArrayBuffer)
+  const arrayBuffer = processed.buffer.slice(
+    processed.byteOffset,
+    processed.byteOffset + processed.byteLength
+  );
 
-  if (result && Array.isArray(result)) {
-    for (const item of result) {
-      if (item.text) {
-        rawText += item.text + "\n";
-        if (typeof item.score === "number") {
-          totalConfidence += item.score;
-          lineCount++;
-        }
-      }
-    }
-  } else if (result && typeof result === "object") {
-    if (Array.isArray(result.lines)) {
-      for (const line of result.lines) {
-        if (line.text) rawText += line.text + "\n";
-        if (typeof line.score === "number") {
-          totalConfidence += line.score;
-          lineCount++;
-        }
-      }
-    } else if (result.text) {
-      rawText = typeof result.text === "string" ? result.text : JSON.stringify(result.text);
-    }
-  }
+  // recognize() returns PaddleOcrResult: { text: string, lines: RecognitionResult[][], confidence: number }
+  const result = await service.recognize(arrayBuffer);
 
-  const avgConfidence = lineCount > 0 ? totalConfidence / lineCount : 0.5;
+  const rawText = result.text || "";
+  const avgConfidence = typeof result.confidence === "number" ? result.confidence : 0.5;
+
+  console.log(`[PaddleOCR] Extracted ${rawText.length} chars, confidence: ${avgConfidence.toFixed(3)}`);
+
   const fields = parseReceiptText(rawText);
   const confidence: Record<string, number> = {
     overall: avgConfidence,
@@ -455,7 +439,9 @@ export async function POST(req: NextRequest) {
       if (ocrStatus !== "COMPLETED") {
         try {
           const paddleResult = await runPaddleOcr(buffer);
-          if (paddleResult.rawText && paddleResult.rawText.trim().length > 10) {
+          // Check actual OCR text (strip the "[PaddleOCR]\n" prefix)
+          const actualText = paddleResult.rawText.replace(/^\[PaddleOCR\]\n?/, "").trim();
+          if (actualText.length > 5) {
             ocrData = paddleResult.fields;
             ocrData._rawText = paddleResult.rawText;
             ocrConfidence = paddleResult.confidence;

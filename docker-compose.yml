@@ -20,6 +20,7 @@ services:
 
   web:
     build: .
+    mem_limit: 3g
     ports:
       - "3300:3000"
     volumes:
